@@ -1,6 +1,6 @@
 # CHM-004 — Multiplayer and integration test matrix
 
-Version 0.1 · 2026-10-20 · Codex · **Planning draft — no tests executed**
+Version 0.2 · 2026-10-20 · Codex · **Planning draft — no tests executed**
 
 [Issue #4](https://github.com/nickfucina87-coder/Project-Chimera-/issues/4) · Branch: `codex/chm-004-test-matrix`
 
@@ -15,7 +15,7 @@ Read sources at main commit `19ca87f2427dddf0a97755e428a1059c7112b68b`:
 PR #10 remains a draft dependency, not approved runtime behavior. Its S/I/U identifiers are document references, not implemented classes/events. This plan introduces no replication field names, RPCs, crafting values, life counts or outcome tie-break rules.
 
 ## Execution status and meaning
-**All 51 cases below are Not run.** No pass, failure, screenshot, runtime timing, import, compile or remote-connectivity evidence exists from this work. Baseline main contains planning files rather than an Unreal project/test build. Rows requiring unapproved rules are additionally blocked from acceptance by their listed dependencies. A proposed expected result is an acceptance hypothesis, not proof that the system exists.
+**All 52 cases below are Not run.** No pass, failure, screenshot, runtime timing, import, compile or remote-connectivity evidence exists from this work. Baseline main contains planning files rather than an Unreal project/test build. Rows requiring unapproved rules are additionally blocked from acceptance by their listed dependencies. A proposed expected result is an acceptance hypothesis, not proof that the system exists.
 
 Record each execution as Not run, Blocked, Pass or Fail. Blocked requires the missing rule/build/fixture reference; Pass requires all server/client expectations and evidence; partial execution is not Pass. Never substitute a local editor session for actual internet validation.
 
@@ -81,7 +81,7 @@ Traceability: GDD §§3–5,12–13; NET-001/002; UI S01–05/S12, I01/02/09.
 - **Steps:** 1. Host an approved session. 2. Other three discover/join from separate internet-connected machines. 3. Compare roster, identities and session state.
 - **Expected server:** Exactly four unique participants accepted; one authority and coherent lifecycle; no duplicate identities.
 - **Expected clients:** All see the same accepted roster; pending differs from accepted; supported error/retry paths work.
-- **Evidence:** E0,E1; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### SES-02 — Role contention and 3v1
 
@@ -90,7 +90,7 @@ Traceability: GDD §§3–5,12–13; NET-001/002; UI S01–05/S12, I01/02/09.
 - **Steps:** 1. Submit simultaneous entity requests. 2. Assign remaining players operative. 3. Toggle ready and attempt unauthorized/premature start.
 - **Expected server:** Enforce one player-controlled entity and three operatives; start only under approved readiness/permission policy.
 - **Expected clients:** Rejected role request preserves accepted role; no enemy loadout leak; all spawn with correct role HUD.
-- **Evidence:** E0,E1,E3; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E3; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### SES-03 — Join/cancel/full session
 
@@ -99,7 +99,7 @@ Traceability: GDD §§3–5,12–13; NET-001/002; UI S01–05/S12, I01/02/09.
 - **Steps:** 1. Cancel a pending join and join another supported session. 2. Deliver original response late. 3. Probe full session, stale listing, incompatible build/auth failure using supported controls.
 - **Expected server:** No extra player admitted to initial 4-player configuration; canceled/stale attempt cannot corrupt active identity.
 - **Expected clients:** No stale redirect or endless spinner; reason shown only when provided; retry does not duplicate join.
-- **Evidence:** E0,E1; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### SES-04 — Loading and lobby departure
 
@@ -108,7 +108,7 @@ Traceability: GDD §§3–5,12–13; NET-001/002; UI S01–05/S12, I01/02/09.
 - **Steps:** 1. Ready group. 2. Delay one loader; leave/rejoin during countdown where supported. 3. Complete loading or trigger approved timeout.
 - **Expected server:** Only authoritative phase advances; readiness/loading and departure policy applied consistently.
 - **Expected clients:** Local loading completion does not launch other clients; briefing and failure states remain accurate.
-- **Evidence:** E0,E1; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### SES-05 — Rematch and role swap
 
@@ -117,7 +117,7 @@ Traceability: GDD §§3–5,12–13; NET-001/002; UI S01–05/S12, I01/02/09.
 - **Steps:** 1. Complete round. 2. Request rematch concurrently/repeatedly. 3. Swap roles and start next round. 4. Run three consecutive rounds.
 - **Expected server:** One next-match transition; approved reset/persistence rules applied; old requests cannot mutate new match.
 - **Expected clients:** Clear old body, inventory, targets, CCTV, result subscriptions; correct new HUD; no sensitive prior-role data.
-- **Evidence:** E0,E1,E3; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E3; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### SES-06 — Host exit and unsupported operations
 
@@ -126,7 +126,7 @@ Traceability: GDD §§3–5,12–13; NET-001/002; UI S01–05/S12, I01/02/09.
 - **Steps:** 1. Host leaves normally and abruptly in lobby, harvest, uplink and results. 2. Attempt late join and reconnect.
 - **Expected server:** Approved termination/migration/reconnect policy only; no assumed host migration or free win.
 - **Expected clients:** Clear session-loss path; if feature unsupported show explicit result; if supported restore authoritative state without duplicate Pawn.
-- **Evidence:** E0,E1; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2; capture bundle contents defined above, not just an unchecked artifact label.
 
 ### Combat, salvage and crafting
 
@@ -148,7 +148,17 @@ Traceability: GDD §§4,8–10,13; NET-003/005; INT-001–003/008; WPN-001–005
 - **Steps:** 1. Through approved hooks submit stale-body, other-owner, impossible-rate/ammo and invalid-target damage requests. 2. Repeat after death/end phase.
 - **Expected server:** Reject invalid ownership/state/rate under approved rules; client cannot set health or force death.
 - **Expected clients:** No unauthorized health/ammo changes or false confirmed kill; rejection does not desync valid play.
-- **Evidence:** E0,E1,E3; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E3; capture bundle contents defined above, not just an unchecked artifact label.
+
+
+#### AUT-03 — Creature, trap and electrical hazard damage
+
+- **Status:** Not run. **Severity:** S0. **Dependencies:** D1,D4,D5,D6.
+- **Machines/roles:** P1–P4 on four separate machines; creature attacker, operative target, operative observer, and operative repairer. Repeat with host as attacker and target.
+- **Steps:** 1. In separate reset fixtures apply each approved hexapod/biped attack, placed trap and energized environmental hazard to an operative. 2. Move target into/out of permitted range or hazard volume, disable/repair source, and repeat at the damage boundary. 3. Submit duplicate/stale activation through approved hooks; test disallowed team/owner targets under the approved friendly-fire policy. 4. Repeat lethal hit during extraction and death-to-operator transition on N0 and N2.
+- **Expected server:** Validate damage source, ownership, range/contact, active hazard/trap state and approved target/friendly-fire rules. Apply only approved damage/tick counts and one death transition; no damage from an expired/disarmed/unpowered source or a stale body. Resolve extraction race by D5, without inventing a priority.
+- **Expected clients:** Target health, permitted hit feedback, trap/hazard visual/audio state and operator transition reconcile to authority. Disabling source does not leave ghost damage or a client-only safe zone. Owner and remote observers see only permitted information.
+- **Evidence:** E0,E1,E2,E4 for impaired runs; capture accepted/rejected source events, before/after health and source state, synchronized target/attacker/observer views and source-off boundary timing.
 
 #### HAR-01 — Individual component selection
 
@@ -193,7 +203,7 @@ Traceability: GDD §§4,8–10,13; NET-003/005; INT-001–003/008; WPN-001–005
 - **Steps:** 1. Submit two crafts against same inventory. 2. Use insufficient resources, unknown recipe or invalid slot. 3. Delay success until panel closes/body changes.
 - **Expected server:** Reject invalid requests; no negative balance, duplicate grant, or stale-body mutation; approved atomic transaction behavior.
 - **Expected clients:** Confirmed inventory remains correct; unknown versus zero distinct; pending status resolves without optimistic reward.
-- **Evidence:** E0,E1; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### CRA-03 — Module counterplay and physical sabotage scope
 
@@ -251,7 +261,7 @@ Traceability: GDD §§6–7; CHR-002–005; ANM-002–005; BLK-002–004; NET-00
 - **Steps:** 1. Walk/crouch/sprint through approved doors, aisles, gaps and overhead transitions. 2. Observe from other elevations. 3. Replace placeholder with approved asset fixture.
 - **Expected server:** Collision and target anchors preserve approved traversal graph; disallowed body routes remain blocked.
 - **Expected clients:** No camera clipping, foot/leg penetration that obscures tells, floating sockets or invisible occluders; both remote and owner silhouettes coherent.
-- **Evidence:** E0,E2; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2; capture bundle contents defined above, not just an unchecked artifact label.
 
 ### Power, machinery and mission outcomes
 
@@ -318,7 +328,7 @@ Traceability: GDD §§5–6,8–9; INT-004/005/007/009; NET-004/006; UI S05–07
 - **Steps:** 1. Eliminate all operatives. 2. Let timer expire without qualified extraction. 3. Destroy final creature body before objectives complete.
 - **Expected server:** Resolve approved entity-win/timeout rules; creature destruction alone does not satisfy human objectives; emergency escape/stalemate policy requires approval.
 - **Expected clients:** Results use server decision, not local timer or killfeed; dead operators cannot block round conclusion.
-- **Evidence:** E0,E1; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### WIN-03 — Outcome boundary races
 
@@ -327,7 +337,7 @@ Traceability: GDD §§5–6,8–9; INT-004/005/007/009; NET-004/006; UI S05–07
 - **Steps:** 1. Qualify extraction at timer boundary. 2. Kill last human during extraction. 3. Complete uplink during outage. 4. Deliver final result before delayed prior events.
 - **Expected server:** Approved deterministic precedence; exactly one immutable final adjudication; late messages cannot award second win.
 - **Expected clients:** All clients settle on same winner/reason; no replayed gameplay mutation after final phase; rematch remains functional.
-- **Evidence:** E0,E1; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2; capture bundle contents defined above, not just an unchecked artifact label.
 
 ### Operator permissions and cameras
 
@@ -340,7 +350,7 @@ Traceability: GDD §§4,9,11,13; INT-006; NET-007/008; UI S06/S10/S11, I07/08.
 - **Steps:** 1. Kill P2 while interaction/menu active. 2. Open remote console. 3. Attempt former living-body actions.
 - **Expected server:** Confirmed role/observer transition; only permitted cameras/actions; living input authority removed.
 - **Expected clients:** Living HUD/targets clear; feed list contains only permitted working cameras; no free spectator view.
-- **Evidence:** E0,E1,E3; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E3; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### OBS-02 — Power loss and permission revocation
 
@@ -358,7 +368,7 @@ Traceability: GDD §§4,9,11,13; INT-006; NET-007/008; UI S06/S10/S11, I07/08.
 - **Steps:** 1. Use permitted ping/control. 2. Try wrong-role, unpermitted target/action, out-of-bounds and excessive-repeat requests. 3. Check recipients.
 - **Expected server:** Enforce action list, power, bounds, cooldown and recipient policy; rejected input cannot mutate machinery.
 - **Expected clients:** Only authorized audiences receive ping/info; restriction reason understandable; no global remote hack.
-- **Evidence:** E0,E1,E3; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E3; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### OBS-04 — Hidden-state delivery audit
 
@@ -367,7 +377,7 @@ Traceability: GDD §§4,9,11,13; INT-006; NET-007/008; UI S06/S10/S11, I07/08.
 - **Steps:** 1. Place entity/resources/reserves and unauthorized cameras outside permitted vision. 2. Inspect approved client diagnostics/data delivery. 3. Role-swap/rematch.
 - **Expected server:** Filter sensitive data at authority boundary according to contract; not merely hidden widgets; diagnostic data does not leak tactical state.
 - **Expected clients:** No unauthorized feed/transforms/recipe/reserve details or stale prior-role caches. Legitimate visible entities still render per approved relevance policy.
-- **Evidence:** E0,E3; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E3; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### CAM-01 — FPS/TPS preference and policy
 
@@ -416,7 +426,7 @@ Traceability: GDD §13; NET-001–008; UI recovery rules and I01–I09.
 - **Steps:** 1. Break connection before request, after server commit/before reply, during transfer, and during result/rematch. 2. Retry only via approved recovery.
 - **Expected server:** Approved retention/timeout/reconnect handling; exactly one commit, no duplicated yield/spend/body or false participant identity.
 - **Expected clients:** Stale controls disabled; fresh snapshot on supported reconnect; no blind replay of non-idempotent action; clear unsupported path.
-- **Evidence:** E0,E1,E4; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E4; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### NET-03 — Replication delay/reorder/duplicate
 
@@ -425,7 +435,7 @@ Traceability: GDD §13; NET-001–008; UI recovery rules and I01–I09.
 - **Steps:** 1. Delay component/inventory/power updates independently. 2. Deliver stale/duplicate interaction outcomes and role/phase messages. 3. Restore normal delivery.
 - **Expected server:** Approved sequencing/transaction design yields coherent current state; old match/body events cannot apply; do not invent RPC guarantees.
 - **Expected clients:** No false success, reverted destroyed component, negative inventory, resurrected living HUD or revoked feed restored by late data.
-- **Evidence:** E0,E1,E3,E4; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E3,E4; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### NET-04 — Relevance, snapshot and resynchronization
 
@@ -443,7 +453,7 @@ Traceability: GDD §13; NET-001–008; UI recovery rules and I01–I09.
 - **Steps:** 1. Introduce controlled stall/bandwidth restriction. 2. Resume. 3. Attempt incompatible content/contract version connection.
 - **Expected server:** Approved timeout/timebase/version policy prevents inconsistent simulation and mutations; no unbounded duplicated transactions.
 - **Expected clients:** Recover or terminate explicitly; timer/phase converge; rejection readable; report CPU/network measurements without invented shipping budgets.
-- **Evidence:** E0,E1,E4; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E4; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### NET-06 — Long session and fault recovery regression
 
@@ -541,7 +551,7 @@ Traceability: GDD §§3,10–12,16–17; UI-001–008; NET-009/010; PR #10 U01�
 - **Steps:** 1. Finish match. 2. Save approved cosmetic/unlock choice. 3. Fail/retry save, reconnect account and rematch; replay result event.
 - **Expected server:** Apply approved rewards once to authorized account only; save conflicts resolved; no unapproved competitive advantage.
 - **Expected clients:** Preview differs from confirmed equip; failed save preserves confirmed choice; missing stats unavailable; no duplicate rewards.
-- **Evidence:** E0,E1,E3; capture bundle contents defined above, not just an unchecked artifact label.
+- **Evidence:** E0,E1,E2,E3; capture bundle contents defined above, not just an unchecked artifact label.
 
 #### RDM-01 — Integrated proximity voice and overhearing
 
@@ -581,7 +591,7 @@ The baseline tree has no architecture, level, harvest-rule or test implementatio
 | Requirement / source | Cases |
 |---|---|
 | Four players, 3v1, hosting/joining/roles/rematch | SES-01–06; NET-06 |
-| Damage, harvesting, crafting authority | AUT-01–02; HAR-01–03; CRA-01–03; NET-01–03 |
+| Damage, harvesting, crafting authority | AUT-01–03; HAR-01–03; CRA-01–03; NET-01–03 |
 | Backup chassis, optional evolution, traversal | CHA-01–05 |
 | Electrical sabotage, alternate recovery, machinery | POW-01–03; HAR-01; INT-06–07 |
 | Death operator, camera and facility permissions | OBS-01–04; NET-03 |
@@ -597,6 +607,44 @@ The baseline tree has no architecture, level, harvest-rule or test implementatio
 | Manifest CHR/ANM/WPN/VFX/AUD | AUT; CHA; CRA; INT-01–07 |
 | Manifest UI-001–008 and NET-001–010 | SES through UX plus RDM-01; progression NET-010 in UX-02 |
 | Proximity voice, fair progression, randomized missions, future content/population | RDM-01–02; UX-02; retained and dependent, not removed |
+
+
+## First execution runbook and deterministic role schedule
+
+This is preparation only. No tester/machine is allocated and no run has occurred.
+
+| Run | Listen host | Creature | Operatives |
+|---|---|---|---|
+| A | P1 | P2 | P1, P3, P4 |
+| B | P2 | P2 | P1, P3, P4 |
+| C | P3 | P4 | P1, P2, P3 |
+| D | P4 | P4 | P1, P2, P3 |
+| E | P1 | P1 | P2, P3, P4 |
+| F | P2 | P3 | P1, P2, P4 |
+| G | P3 | P3 | P1, P2, P4 |
+| H | P4 | P1 | P2, P3, P4 |
+
+This proposed schedule covers each machine hosting as both operative and creature, and each player controlling the creature. During a run kill one non-host operative for operator checks while retaining all four participants; separately test host-operative death. Repeat designated critical fault cases for each approved combination, with three independent executions as proposed above. Dedicated-server variants require their own approved schedule; do not silently substitute a listen host.
+
+Before scheduling any runtime run, record these readiness checks as Pending until evidence is supplied:
+
+| Check | Evidence needed | If unavailable |
+|---|---|---|
+| Build and access | Packaged build ID, exact UE/content revision, approved backend/session topology, four machines/accounts on independent networks | Block all runtime cases; do not launch guessed commands or services. |
+| Rules and fixtures | Versioned D1–D7 decisions, authoritative expected values, map/seed, body/recipe/circuit/camera fixtures | Block affected assertions; a tester must not choose the game rule. |
+| Capture and observability | Authority/client log correlation, capture clock offsets, four-role video/audio capture and permission audit access | Block assertions that cannot be proven; screenshots alone cannot establish authority. |
+| Fault and timing setup | Approved shaping/hooks, measured baseline, D8/D9 acceptance budgets and recovery/timeout policy | Run only approved qualitative scenarios; quantitative/fault acceptance remains blocked. |
+| Reset and cleanup | Approved fixture reset, account/save isolation, fault removal procedure and clean rematch/session exit | Do not execute mutations without a repeatable reset path. |
+
+Proposed first runnable smoke order: SES-01 → SES-02 → HAR-01 → AUT-01/AUT-03 → POW-01 → OBS-01/02 → OBJ-01 → SES-05. Each arrow requires recorded outcome before continuing; a blocking setup/session/authority failure stops dependent steps and is reported, not counted as multiple observed failures. Full coverage, alternate outcomes and fault variants follow after smoke. This order sequences work and does not exclude any case.
+
+For every D5-dependent outcome fixture, record approved answers before execution: prerequisite power state; uplink completion/interruption rule; eligible extraction zone/duration; minimum extractees and individual outcome treatment; match timebase; all-operatives-dead behavior while operators exist; final creature-body behavior; simultaneous-event ordering; disconnect/abandonment handling. If any answer needed by that fixture is absent, mark its adjudication assertion Blocked rather than choose a winner.
+
+## Continuation review notes
+
+Version 0.2 review found and corrected missing explicit visual evidence references: every case now requires E1 authority/client logs and E2 visual capture alongside E0 metadata. AUT-03 adds explicit coverage for creature melee, traps, electrical hazards and damage-source deactivation races. These are planning improvements, not executed tests.
+
+Main was rechecked at `dc3495d6130cc2410c3ace85a089f7edff57d028`. The GDD/manifest/task-board blobs remain the original baseline. New [environment research notes](https://github.com/nickfucina87-coder/Project-Chimera-/blob/dc3495d6130cc2410c3ace85a089f7edff57d028/ENVIRONMENT_SOURCES_NOTES.md) identify detachable rack internals, salvageable robotics parts, service cavities and repairable breakers as custom/integration gaps. Treat those notes as research input to D6/D9 and INT-06, not verified vendor/license/import facts or completed assets. The architecture, blockout and harvest-rule deliverables and runnable Unreal build remain absent from main. PR #11 has no submitted reviews or inline comments at this continuation check; no approval is inferred.
 
 ## Execution record template
 Copy per case/profile/role combination; do not overwrite prior failures with later passes.
@@ -623,6 +671,6 @@ Retest build/run and reviewer:
 2. **Acceptance approval:** bind proposed expectations to approved upstream revisions, replace rule-dependent ambiguities with explicit oracles, approve lab profiles/budgets and provide runnable fixtures. Record changes in this QA file on its own branch; do not alter PR #10.
 3. **Execution and defect triage:** run packaged four-machine internet smoke, then full matrix and fault/role variants. Record blocked assertions separately from actual failures; fix verification requires linked retest evidence.
 4. **Integrated/Verified claims:** require owner-authorized integration plus actual import/compile, internet multiplayer, gameplay and permission evidence. A document or agent report is insufficient. Proposed gate: no unresolved S0/S1 in required acceptance coverage; owner must approve actual release/verification criteria. Never mark unimplemented retained scope as passed.
-5. **October 31 report:** list counts and case IDs for Not run/Blocked/Pass/Fail with artifacts; distinguish specified, implemented untested, functional incomplete, asset production and verified evidence. Keep all 51 cases and future features in scope. A missed checkpoint changes progress reporting, not the game vision.
+5. **October 31 report:** list counts and case IDs for Not run/Blocked/Pass/Fail with artifacts; distinguish specified, implemented untested, functional incomplete, asset production and verified evidence. Keep all 52 cases and future features in scope. A missed checkpoint changes progress reporting, not the game vision.
 
 Document-only validation performed during preparation: source/coverage review, unique case IDs and required per-case fields, upstream dependency flags, and isolated GitHub diff/read-back. **No runtime, multiplayer, fault injection, asset import, audiovisual, usability or performance test has been executed under CHM-004.**
