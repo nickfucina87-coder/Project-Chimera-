@@ -1,13 +1,23 @@
 # PROJECT CHIMERA — Master Game Design Document
-**Version:** 0.6 — review draft  
-**Date:** 2026-10-20  
-**Status:** Preproduction; design and production contracts require owner review before gameplay implementation.  
+**Version:** 0.7 — shared-component direction  
+**Date:** 2026-10-24  
+**Status:** Preproduction. Owner authorized the shared-component direction, all seven build families, and the bounded T01 prototype on 2026-10-24. Runtime readiness remains unverified.  
 **Milestone:** October 31 is a **progress checkpoint**, not a release deadline or reason to remove features.
+
+## Revision 0.7 — authoritative additions
+- [Shared-component design](SHARED_COMPONENT_DESIGN.md): physical parts, seven builds, acquisition routes and machine vision.
+- [First test plan](COMPONENT_TEST_PLAN.md): three rooms, three donors, six parts, two upgrades and both playable roles.
+- [Asset acquisition checklist](ASSET_ACQUISITION_CHECKLIST.md): full breakdown and evidence-based local inventory.
+- Offline human play against AI and co-op PvE are now product goals alongside the original asymmetric PvP.
+- Shared components are physical instances; broad material families below remain categorization/future recipes, not an automatic conversion of every part into generic currency.
+- T01 sequencing supersedes the broad phase order for the next implementation task; the whole-game scope remains intact.
+- Detailed numerical recipes/ranges/cooldowns are provisional tuning proposals. Time manipulation remains exploratory.
+- This revision authorizes inspection and the bounded test; it does not certify any local implementation or asset ownership.
 
 ## 1. High concept
 Project Chimera is a four-player asymmetric survival-horror game: **three human operatives versus one player-controlled synthetic entity** in a damaged, classified data-center, robotics, and military-research complex. The operatives must restore power, transmit a distress signal, and extract. The creature begins as a small six-legged mechanical scavenger, selectively dismantles machinery for resources, sabotages systems physically, assembles unpredictable but learnable abilities, and may remain small or reconstruct into a tall skeletal biped.
 
-**Signature conflict:** the humans depend on functioning infrastructure, and the entity consumes or weaponizes that same infrastructure. Changes must have visible and audible consequences.
+**Signature conflict:** humans rebuild the facility to escape; their component and access decisions shape what the entity can become. The entity may preserve/tap live infrastructure or harvest it for onboard hardware. Changes must have visible and audible consequences.
 
 ## 2. Design pillars
 1. **Quiet tactics become escalating chaos.** Opening minutes reward investigation, stalking, concealment, and restraint; player decisions intensify the endgame.

@@ -1,6 +1,6 @@
 # Project Chimera — Agent Task Board
 **Created:** 2026-10-20  
-**Status:** Planning issues created, execution unassigned.  
+**Status:** 2026-10-24 update: owner authorized shared-component revision and bounded T01 test. Local editor access and implementation still unverified.  
 **Important:** October 31 is a progress checkpoint; no agreed features are being removed.
 
 ## Single source of truth
@@ -24,7 +24,7 @@
 
 ## Operating rules
 - GitHub Issues are task records, **not** remote instructions delivered automatically to Claude/Grok/Tripo.
-- Workers begin only when their issue has been handed to them in their connected interface or delegated tool. They may propose designs now; do not edit the working Unreal project until approved.
+- Workers begin only when work has been handed to them in their connected interface. On 2026-10-24 the owner authorized local inspection and the bounded T01 implementation; use a checkpoint/test map and preserve existing work. Broader changes remain subject to scope review.
 - Prefer one agent per implementation file/module; avoid simultaneous changes to shared Unreal assets.
 - Track: Backlog → Ready → In progress → Review → Approved → Integrated → Verified.
 - Owner approves integrations; verification requires evidence (UE import/compile/test, actual online multiplayer and gameplay).
@@ -38,3 +38,12 @@
 5. Review outputs for shared dimensions and interactions before issuing implementation tasks.
 
 This is an **issue-based task board**, not a GitHub Projects Kanban view.
+
+## 2026-10-24 next work (supersedes initial handoff order)
+1. Connect existing local Unreal MCP; verify project/version and read-only inspection.
+2. Inventory real assets using ASSET_ACQUISITION_CHECKLIST.md; no ownership inferred from legacy manifest status.
+3. Build COMPONENT_TEST_PLAN.md in isolated test map: three donors, six parts, Signal Sense and Servo Boost.
+4. Verify both playable roles, then two-player authoritative transfers and upgrade behavior.
+5. Hand Claude exact changed files, current branch/commit, asset paths, compile/import evidence and unresolved failures when available.
+Astra/ChatGPT is the requested current assistant; this document does not imply a remote worker has started.
+All seven build families and the full component/vision catalog remain planned. Existing issue records remain historical until individually updated; this board and v0.7 linked specs define current sequencing.
