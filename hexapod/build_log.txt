@@ -1,0 +1,29 @@
+armature HexapodRig bones 27
+bones: ['Root', 'body', 'L_mid_hip', 'L_mid_knee', 'L_mid_ankle', 'L_front_hip', 'L_front_knee', 'L_front_ankle', 'R_front_hip', 'R_front_knee', 'R_front_ankle', 'R_mid_hip', 'R_mid_knee', 'R_mid_ankle', 'R_rear_hip', 'R_rear_knee', 'R_rear_ankle', 'L_rear_hip', 'L_rear_knee', 'L_rear_ankle', 'head', 'abdomen', 'pod_L', 'pod_R', 'plate_rear', 'plate_mid', 'plate_front']
+actions: [('Walk_TripodGait', (0.0, 28.80000114440918))]
+saved 01_import
+root Root body body head head legs {('L', 'front'): 'L_front_ankle', ('L', 'mid'): 'L_mid_ankle', ('L', 'rear'): 'L_rear_ankle', ('R', 'front'): 'R_front_ankle', ('R', 'mid'): 'R_mid_ankle', ('R', 'rear'): 'R_rear_ankle'}
+fwd <Vector (-0.0004, -1.0000, 0.0000)> left <Vector (1.0000, -0.0004, -0.0000)> legLen 0.47819079286500915
+pole ('L', 'front') angle -140 err 0.0057
+pole ('L', 'mid') angle 175 err 0.0199
+pole ('L', 'rear') angle 135 err 0.0002
+pole ('R', 'front') angle 140 err 0.0028
+pole ('R', 'mid') angle -180 err 0.0184
+pole ('R', 'rear') angle -135 err 0.0079
+saved 02_ik
+head curves damped 4 in Walk_TripodGait
+saved 03_head
+gait Sprint_Gallop
+baked Sprint_Gallop 0- 16
+gait Strafe_L
+baked Strafe_L 0- 28
+gait Strafe_R
+baked Strafe_R 0- 28
+gait Walk_Backup
+baked Walk_Backup 0- 32
+saved 04_gaits
+FBX ok
+render Walk_TripodGait
+render Sprint_Gallop
+render Strafe_L
+FINAL actions: [('CTRL_Sprint_Gallop_L_front', (0.0, 16.0)), ('CTRL_Sprint_Gallop_L_mid', (0.0, 16.0)), ('CTRL_Sprint_Gallop_L_rear', (0.0, 16.0)), ('CTRL_Sprint_Gallop_R_front', (0.0, 16.0)), ('CTRL_Sprint_Gallop_R_mid', (0.0, 16.0)), ('CTRL_Sprint_Gallop_R_rear', (0.0, 16.0)), ('CTRL_Strafe_L_L_front', (0.0, 28.0)), ('CTRL_Strafe_L_L_mid', (0.0, 28.0)), ('CTRL_Strafe_L_L_rear', (0.0, 28.0)), ('CTRL_Strafe_L_R_front', (0.0, 28.0)), ('CTRL_Strafe_L_R_mid', (0.0, 28.0)), ('CTRL_Strafe_L_R_rear', (0.0, 28.0)), ('CTRL_Strafe_R_L_front', (0.0, 28.0)), ('CTRL_Strafe_R_L_mid', (0.0, 28.0)), ('CTRL_Strafe_R_L_rear', (0.0, 28.0)), ('CTRL_Strafe_R_R_front', (0.0, 28.0)), ('CTRL_Strafe_R_R_mid', (0.0, 28.0)), ('CTRL_Strafe_R_R_rear', (0.0, 28.0)), ('CTRL_Walk_Backup_L_front', (0.0, 32.0)), ('CTRL_Walk_Backup_L_mid', (0.0, 32.0)), ('CTRL_Walk_Backup_L_rear', (0.0, 32.0)), ('CTRL_Walk_Backup_R_front', (0.0, 32.0)), ('CTRL_Walk_Backup_R_mid', (0.0, 32.0)), ('CTRL_Walk_Backup_R_rear', (0.0, 32.0)), ('Sprint_Gallop', (0.0, 16.0)), ('Strafe_L', (0.0, 28.0)), ('Strafe_R', (0.0, 28.0)), ('Walk_Backup', (0.0, 32.0)), ('Walk_TripodGait', (0.0, 28.80000114440918)), ('Walk_TripodGait_ORIG', (0.0, 28.80000114440918))]

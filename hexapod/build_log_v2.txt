@@ -1,0 +1,56 @@
+tips {'L_front': (0.502, -0.549, -0.302), 'L_mid': (0.568, 0.005, -0.302), 'L_rear': (0.38, 0.52, -0.302), 'R_front': (-0.593, -0.645, -0.302), 'R_mid': (-0.747, 0.007, -0.302), 'R_rear': (-0.453, 0.66, -0.302)}
+ground -0.302 nose -0.66 tail 0.407 belly -0.097 top 0.308
+leg L_front l1/l2/l3 0.336 0.305 0.122
+leg L_mid l1/l2/l3 0.226 0.309 0.125
+leg L_rear l1/l2/l3 0.246 0.318 0.119
+leg R_front l1/l2/l3 0.329 0.315 0.161
+leg R_mid l1/l2/l3 0.228 0.308 0.177
+leg R_rear l1/l2/l3 0.259 0.311 0.168
+baked Walk_Fwd                   0- 32 loop=True rm=False maxJoint= 66.3deg maxStretch=1.03(L_rear) speed=0.38 m/s
+baked Walk_Backup                0- 32 loop=True rm=False maxJoint= 56.3deg maxStretch=0.99(L_rear) speed=0.30 m/s
+baked Strafe_L                   0- 28 loop=True rm=False maxJoint= 61.7deg maxStretch=1.04(L_mid) speed=0.34 m/s
+baked Strafe_R                   0- 28 loop=True rm=False maxJoint= 61.7deg maxStretch=1.04(R_mid) speed=0.34 m/s
+baked Run_Fwd                    0- 18 loop=True rm=False maxJoint= 66.3deg maxStretch=1.13(L_rear) speed=1.33 m/s
+baked Sprint_Fwd                 0- 14 loop=True rm=False maxJoint= 66.3deg maxStretch=1.14(L_rear) speed=2.08 m/s
+baked Gallop_Fwd                 0- 14 loop=True rm=False maxJoint= 66.3deg maxStretch=1.17(L_rear) speed=2.57 m/s
+baked Stealth_Crawl              0- 72 loop=True rm=False maxJoint= 34.1deg maxStretch=0.95(L_rear) speed=0.09 m/s
+baked Turn_L                     0- 28 loop=True rm=False maxJoint= 22.0deg maxStretch=0.87(L_mid) speed=44 deg/s
+baked Turn_R                     0- 28 loop=True rm=False maxJoint= 22.3deg maxStretch=0.87(L_front) speed=44 deg/s
+baked Idle                       0- 72 loop=True rm=False maxJoint=  2.1deg maxStretch=0.85(L_mid)
+baked Idle_LookAround            0-120 loop=True rm=False maxJoint= 10.1deg maxStretch=0.85(R_mid)
+baked Idle_Ceiling_Hang          0- 72 loop=True rm=False maxJoint= 14.0deg maxStretch=0.90(L_mid)
+baked Jump_Start                 0- 12 loop=False rm=False maxJoint= 18.9deg maxStretch=0.92(L_mid)
+baked Jump_Fall                  0- 24 loop=True rm=False maxJoint= 16.6deg maxStretch=0.90(L_mid)
+baked Jump_Land                  0- 18 loop=False rm=False maxJoint= 26.9deg maxStretch=0.95(L_mid)
+baked Jump_InPlace               0- 42 loop=False rm=False maxJoint= 29.3deg maxStretch=0.95(L_mid)
+baked Grab_Reach                 0- 30 loop=False rm=False maxJoint= 62.1deg maxStretch=1.07(L_front)
+baked Grab_Hold                  0- 48 loop=True rm=False maxJoint= 52.4deg maxStretch=0.88(L_front)
+baked Grab_Release               0- 20 loop=False rm=False maxJoint= 52.3deg maxStretch=0.96(L_front)
+baked Reach_Up                   0- 48 loop=False rm=False maxJoint= 78.4deg maxStretch=1.24(L_front)
+baked Stand_Upright_Start        0- 30 loop=False rm=False maxJoint= 61.7deg maxStretch=1.09(L_mid)
+baked Stand_Upright_Loop         0- 48 loop=True rm=False maxJoint= 61.7deg maxStretch=1.10(L_mid)
+baked Stand_Upright_End          0- 30 loop=False rm=False maxJoint= 61.7deg maxStretch=1.09(L_mid)
+baked Attack_Stab                0- 30 loop=False rm=False maxJoint= 62.1deg maxStretch=1.10(L_front)
+baked Hit_React                  0- 16 loop=False rm=False maxJoint= 29.7deg maxStretch=0.94(R_front)
+baked Death                      0- 48 loop=False rm=False maxJoint= 94.3deg maxStretch=0.99(R_mid)
+concave: wall 0.85 m ahead, ends 0.72 m up, body penetration 0.000
+baked Trans_Floor_To_Wall        0- 48 loop=False rm=True maxJoint= 65.4deg maxStretch=1.23(L_mid)
+baked Trans_Wall_To_Ceiling      0- 48 loop=False rm=True maxJoint= 65.4deg maxStretch=1.23(L_mid)
+baked Trans_Floor_To_Ceiling     0- 96 loop=False rm=True maxJoint= 65.4deg maxStretch=1.23(L_mid)
+baked Trans_Ceiling_To_Wall      0- 48 loop=False rm=True maxJoint= 65.4deg maxStretch=1.23(L_mid)
+baked Trans_Wall_To_Floor        0- 48 loop=False rm=True maxJoint= 65.4deg maxStretch=1.23(L_mid)
+baked Trans_Ceiling_To_Floor     0- 96 loop=False rm=True maxJoint= 65.4deg maxStretch=1.23(L_mid)
+convex: edge 0.62 m ahead, ends 0.65 m below, body penetration 0.000
+baked Trans_Over_Ledge           0- 48 loop=False rm=True maxJoint= 81.2deg maxStretch=1.29(L_rear)
+baked Jump_Wall_To_Floor         0- 35 loop=False rm=True maxJoint= 62.1deg maxStretch=1.04(L_front)
+baked Drop_Wall_To_Floor         0- 35 loop=False rm=True maxJoint= 66.3deg maxStretch=1.03(L_rear)
+baked Drop_Ceiling_To_Floor      0- 36 loop=False rm=True maxJoint= 66.3deg maxStretch=1.09(R_mid)
+baked GrabWalk_Fwd               0- 32 loop=True rm=False maxJoint= 52.3deg maxStretch=0.96(L_rear) speed=0.25 m/s
+baked GrabWalk_Back              0- 32 loop=True rm=False maxJoint= 52.3deg maxStretch=0.96(L_rear) speed=0.25 m/s
+baked GrabStrafe_L               0- 32 loop=True rm=False maxJoint= 61.7deg maxStretch=1.04(L_mid) speed=0.25 m/s
+baked GrabStrafe_R               0- 32 loop=True rm=False maxJoint= 61.7deg maxStretch=1.04(R_mid) speed=0.25 m/s
+baked Upright_Walk_Fwd           0- 36 loop=True rm=False maxJoint= 66.3deg maxStretch=1.13(L_mid) speed=0.14 m/s
+baked Upright_Walk_Back          0- 36 loop=True rm=False maxJoint= 66.3deg maxStretch=1.13(L_mid) speed=0.14 m/s
+baked Upright_Pounce             0- 40 loop=False rm=False maxJoint= 62.1deg maxStretch=1.32(L_front)
+baked Upright_Buck               0- 34 loop=False rm=False maxJoint= 69.1deg maxStretch=1.27(L_mid)
+SAVED C:\Users\nickf\Documents\Chimera_Hexapod_Anim\Ironclad_Hexapod_Anim_v2.blend actions: 46

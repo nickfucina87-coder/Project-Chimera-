@@ -1,0 +1,822 @@
+{
+ "fps": 24,
+ "ground_z": -0.30174630880355835,
+ "actions": [
+  {
+   "name": "Walk_Fwd",
+   "frames": 32,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.38 m/s",
+   "note": "in-place gait",
+   "max_joint_deg": 66.3,
+   "max_stretch": 1.03
+  },
+  {
+   "name": "Walk_Backup",
+   "frames": 32,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.30 m/s",
+   "note": "in-place gait",
+   "max_joint_deg": 56.3,
+   "max_stretch": 0.99
+  },
+  {
+   "name": "Strafe_L",
+   "frames": 28,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.34 m/s",
+   "note": "in-place gait",
+   "max_joint_deg": 61.7,
+   "max_stretch": 1.04
+  },
+  {
+   "name": "Strafe_R",
+   "frames": 28,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.34 m/s",
+   "note": "in-place gait",
+   "max_joint_deg": 61.7,
+   "max_stretch": 1.04
+  },
+  {
+   "name": "Run_Fwd",
+   "frames": 18,
+   "loop": true,
+   "root_motion": false,
+   "speed": "1.33 m/s",
+   "note": "in-place gait",
+   "max_joint_deg": 66.3,
+   "max_stretch": 1.13
+  },
+  {
+   "name": "Sprint_Fwd",
+   "frames": 14,
+   "loop": true,
+   "root_motion": false,
+   "speed": "2.08 m/s",
+   "note": "in-place gait",
+   "max_joint_deg": 66.3,
+   "max_stretch": 1.14
+  },
+  {
+   "name": "Gallop_Fwd",
+   "frames": 14,
+   "loop": true,
+   "root_motion": false,
+   "speed": "2.57 m/s",
+   "note": "in-place gait",
+   "max_joint_deg": 66.3,
+   "max_stretch": 1.17
+  },
+  {
+   "name": "Stealth_Crawl",
+   "frames": 72,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.09 m/s",
+   "note": "in-place gait",
+   "max_joint_deg": 34.1,
+   "max_stretch": 0.95
+  },
+  {
+   "name": "Turn_L",
+   "frames": 28,
+   "loop": true,
+   "root_motion": false,
+   "speed": "44 deg/s",
+   "note": "in-place turn",
+   "max_joint_deg": 22.0,
+   "max_stretch": 0.87
+  },
+  {
+   "name": "Turn_R",
+   "frames": 28,
+   "loop": true,
+   "root_motion": false,
+   "speed": "44 deg/s",
+   "note": "in-place turn",
+   "max_joint_deg": 22.3,
+   "max_stretch": 0.87
+  },
+  {
+   "name": "Idle",
+   "frames": 72,
+   "loop": true,
+   "root_motion": false,
+   "speed": null,
+   "note": "breathing idle",
+   "max_joint_deg": 2.1,
+   "max_stretch": 0.85
+  },
+  {
+   "name": "Idle_LookAround",
+   "frames": 120,
+   "loop": true,
+   "root_motion": false,
+   "speed": null,
+   "note": "head scan idle",
+   "max_joint_deg": 10.1,
+   "max_stretch": 0.85
+  },
+  {
+   "name": "Idle_Ceiling_Hang",
+   "frames": 72,
+   "loop": true,
+   "root_motion": false,
+   "speed": null,
+   "note": "use while attached to a ceiling (actor upside down): body sags away from the surface",
+   "max_joint_deg": 14.0,
+   "max_stretch": 0.9
+  },
+  {
+   "name": "Jump_Start",
+   "frames": 12,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "crouch + push; capsule launches at frame 9",
+   "max_joint_deg": 18.9,
+   "max_stretch": 0.92
+  },
+  {
+   "name": "Jump_Fall",
+   "frames": 24,
+   "loop": true,
+   "root_motion": false,
+   "speed": null,
+   "note": "airborne loop (also used after wall/ceiling drops)",
+   "max_joint_deg": 16.6,
+   "max_stretch": 0.9
+  },
+  {
+   "name": "Jump_Land",
+   "frames": 18,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "impact absorb; frame 0 = ground contact",
+   "max_joint_deg": 26.9,
+   "max_stretch": 0.95
+  },
+  {
+   "name": "Jump_InPlace",
+   "frames": 42,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "full hop with body arc baked in (no root motion)",
+   "max_joint_deg": 29.3,
+   "max_stretch": 0.95
+  },
+  {
+   "name": "Grab_Reach",
+   "frames": 30,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "front legs grab an object ~0.8 m ahead at ground level and lift it; ends in Grab_Hold pose",
+   "max_joint_deg": 62.1,
+   "max_stretch": 1.07
+  },
+  {
+   "name": "Grab_Hold",
+   "frames": 48,
+   "loop": true,
+   "root_motion": false,
+   "speed": null,
+   "note": "holding loop",
+   "max_joint_deg": 52.4,
+   "max_stretch": 0.88
+  },
+  {
+   "name": "Grab_Release",
+   "frames": 20,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "open claws and step back down",
+   "max_joint_deg": 52.3,
+   "max_stretch": 0.96
+  },
+  {
+   "name": "Reach_Up",
+   "frames": 48,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "rear up on 4 legs and reach overhead with the front pair",
+   "max_joint_deg": 78.4,
+   "max_stretch": 1.24
+  },
+  {
+   "name": "Stand_Upright_Start",
+   "frames": 30,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "rear up onto rear + mid legs, front legs raised",
+   "max_joint_deg": 61.7,
+   "max_stretch": 1.09
+  },
+  {
+   "name": "Stand_Upright_Loop",
+   "frames": 48,
+   "loop": true,
+   "root_motion": false,
+   "speed": null,
+   "note": "upright threat loop, front legs pawing",
+   "max_joint_deg": 61.7,
+   "max_stretch": 1.1
+  },
+  {
+   "name": "Stand_Upright_End",
+   "frames": 30,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "back down to all six",
+   "max_joint_deg": 61.7,
+   "max_stretch": 1.09
+  },
+  {
+   "name": "Attack_Stab",
+   "frames": 30,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "front legs rear back and stab down ahead",
+   "max_joint_deg": 62.1,
+   "max_stretch": 1.1
+  },
+  {
+   "name": "Hit_React",
+   "frames": 16,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "hit from the front",
+   "max_joint_deg": 29.7,
+   "max_stretch": 0.94
+  },
+  {
+   "name": "Death",
+   "frames": 48,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "collapse, legs curl",
+   "max_joint_deg": 94.3,
+   "max_stretch": 0.99
+  },
+  {
+   "name": "Trans_Floor_To_Wall",
+   "frames": 48,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; crawl, starts in world orientation. wall 0.85 m ahead; ends 0.72 m up the wall",
+   "max_joint_deg": 65.4,
+   "max_stretch": 1.23
+  },
+  {
+   "name": "Trans_Wall_To_Ceiling",
+   "frames": 48,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; crawl, starts in world orientation. starts head-up on a wall, ceiling 0.85 m above the root; ends upside down",
+   "max_joint_deg": 65.4,
+   "max_stretch": 1.23
+  },
+  {
+   "name": "Trans_Floor_To_Ceiling",
+   "frames": 96,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; crawl, starts in world orientation. floor -> wall -> ceiling in one crawl; wall 0.85 m ahead",
+   "max_joint_deg": 65.4,
+   "max_stretch": 1.23
+  },
+  {
+   "name": "Trans_Ceiling_To_Wall",
+   "frames": 48,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; crawl, starts in world orientation. starts upside down, wall 0.85 m ahead; crawls head-first down the wall",
+   "max_joint_deg": 65.4,
+   "max_stretch": 1.23
+  },
+  {
+   "name": "Trans_Wall_To_Floor",
+   "frames": 48,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; crawl, starts in world orientation. starts head-down on a wall 0.85 m above the floor; crawls onto the floor",
+   "max_joint_deg": 65.4,
+   "max_stretch": 1.23
+  },
+  {
+   "name": "Trans_Ceiling_To_Floor",
+   "frames": 96,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; crawl, starts in world orientation. ceiling -> wall -> floor in one crawl, head first",
+   "max_joint_deg": 65.4,
+   "max_stretch": 1.23
+  },
+  {
+   "name": "Trans_Over_Ledge",
+   "frames": 48,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; outside corner: crawl over a ledge 0.62 m ahead and down the face (also ceiling->wall around an outer edge); ends 0.65 m below the edge, pitched 90 deg",
+   "max_joint_deg": 81.2,
+   "max_stretch": 1.29
+  },
+  {
+   "name": "Jump_Wall_To_Floor",
+   "frames": 35,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; starts head-DOWN on a wall; lands at frame 19 on a floor 1.33 m below the root, 0.92 m out from the wall, facing away",
+   "max_joint_deg": 62.1,
+   "max_stretch": 1.04
+  },
+  {
+   "name": "Drop_Wall_To_Floor",
+   "frames": 35,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; starts head-UP on a wall; pushes off backwards, lands at frame 19 facing the wall, 1.33 m below the root",
+   "max_joint_deg": 66.3,
+   "max_stretch": 1.03
+  },
+  {
+   "name": "Drop_Ceiling_To_Floor",
+   "frames": 36,
+   "loop": false,
+   "root_motion": true,
+   "speed": null,
+   "note": "root motion; starts upside down on a ceiling; half-rolls and lands at frame 20, 2.15 m below the root (ceiling ~2.45 m above the floor)",
+   "max_joint_deg": 66.3,
+   "max_stretch": 1.09
+  },
+  {
+   "name": "GrabWalk_Fwd",
+   "frames": 32,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.25 m/s",
+   "note": "walk while holding with the front legs",
+   "max_joint_deg": 52.3,
+   "max_stretch": 0.96
+  },
+  {
+   "name": "GrabWalk_Back",
+   "frames": 32,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.25 m/s",
+   "note": "walk while holding with the front legs",
+   "max_joint_deg": 52.3,
+   "max_stretch": 0.96
+  },
+  {
+   "name": "GrabStrafe_L",
+   "frames": 32,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.25 m/s",
+   "note": "walk while holding with the front legs",
+   "max_joint_deg": 61.7,
+   "max_stretch": 1.04
+  },
+  {
+   "name": "GrabStrafe_R",
+   "frames": 32,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.25 m/s",
+   "note": "walk while holding with the front legs",
+   "max_joint_deg": 61.7,
+   "max_stretch": 1.04
+  },
+  {
+   "name": "Upright_Walk_Fwd",
+   "frames": 36,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.14 m/s",
+   "note": "shuffle while reared up",
+   "max_joint_deg": 66.3,
+   "max_stretch": 1.13
+  },
+  {
+   "name": "Upright_Walk_Back",
+   "frames": 36,
+   "loop": true,
+   "root_motion": false,
+   "speed": "0.14 m/s",
+   "note": "shuffle while reared up",
+   "max_joint_deg": 66.3,
+   "max_stretch": 1.13
+  },
+  {
+   "name": "Upright_Pounce",
+   "frames": 40,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "from Stand_Upright_Loop: sink back, leap forward claws first, land on all six (game launches the capsule at f13)",
+   "max_joint_deg": 62.1,
+   "max_stretch": 1.32
+  },
+  {
+   "name": "Upright_Buck",
+   "frames": 34,
+   "loop": false,
+   "root_motion": false,
+   "speed": null,
+   "note": "from Stand_Upright_Loop: rear higher and slam the front claws down; ends back in the upright pose",
+   "max_joint_deg": 69.1,
+   "max_stretch": 1.27
+  }
+ ],
+ "preview_quads": {
+  "Trans_Floor_To_Wall": [
+   [
+    [
+     -1.5,
+     -0.8500000238418579,
+     -0.30174630880355835
+    ],
+    [
+     1.5,
+     -0.8500000238418579,
+     -0.30174630880355835
+    ],
+    [
+     1.5,
+     1.649999976158142,
+     -0.30174630880355835
+    ],
+    [
+     -1.5,
+     1.649999976158142,
+     -0.30174630880355835
+    ]
+   ],
+   [
+    [
+     -1.5,
+     -0.8500000238418579,
+     -0.3017463684082031
+    ],
+    [
+     1.5,
+     -0.8500000238418579,
+     -0.3017463684082031
+    ],
+    [
+     1.5,
+     -0.8500000238418579,
+     2.0982537269592285
+    ],
+    [
+     -1.5,
+     -0.8500000238418579,
+     2.0982537269592285
+    ]
+   ]
+  ],
+  "Trans_Wall_To_Ceiling": [
+   [
+    [
+     -1.5,
+     -0.30174627900123596,
+     1.4500000476837158
+    ],
+    [
+     1.5,
+     -0.30174627900123596,
+     1.4500000476837158
+    ],
+    [
+     1.5,
+     -0.3017463684082031,
+     -1.0499999523162842
+    ],
+    [
+     -1.5,
+     -0.3017463684082031,
+     -1.0499999523162842
+    ]
+   ],
+   [
+    [
+     -1.5,
+     -0.30174633860588074,
+     1.4500000476837158
+    ],
+    [
+     1.5,
+     -0.30174633860588074,
+     1.4500000476837158
+    ],
+    [
+     1.5,
+     2.0982537269592285,
+     1.4499999284744263
+    ],
+    [
+     -1.5,
+     2.0982537269592285,
+     1.4499999284744263
+    ]
+   ]
+  ],
+  "Trans_Floor_To_Ceiling": [
+   [
+    [
+     -1.5,
+     -0.8500000238418579,
+     -0.30174630880355835
+    ],
+    [
+     1.5,
+     -0.8500000238418579,
+     -0.30174630880355835
+    ],
+    [
+     1.5,
+     1.649999976158142,
+     -0.30174630880355835
+    ],
+    [
+     -1.5,
+     1.649999976158142,
+     -0.30174630880355835
+    ]
+   ],
+   [
+    [
+     -1.5,
+     -0.8500000238418579,
+     -0.3017463684082031
+    ],
+    [
+     1.5,
+     -0.8500000238418579,
+     -0.3017463684082031
+    ],
+    [
+     1.5,
+     -0.8500000238418579,
+     2.0982537269592285
+    ],
+    [
+     -1.5,
+     -0.8500000238418579,
+     2.0982537269592285
+    ]
+   ],
+   [
+    [
+     -1.5,
+     -0.8499999642372131,
+     1.5700000524520874
+    ],
+    [
+     1.5,
+     -0.8499999642372131,
+     1.5700000524520874
+    ],
+    [
+     1.5,
+     -0.8500000834465027,
+     -0.9299999475479126
+    ],
+    [
+     -1.5,
+     -0.8500000834465027,
+     -0.9299999475479126
+    ]
+   ],
+   [
+    [
+     -1.5,
+     -0.8500000238418579,
+     1.5700000524520874
+    ],
+    [
+     1.5,
+     -0.8500000238418579,
+     1.5700000524520874
+    ],
+    [
+     1.5,
+     1.5500000715255737,
+     1.5699999332427979
+    ],
+    [
+     -1.5,
+     1.5500000715255737,
+     1.5699999332427979
+    ]
+   ]
+  ],
+  "Trans_Ceiling_To_Wall": [
+   [
+    [
+     1.5,
+     -0.8500000238418579,
+     1.9017465114593506
+    ],
+    [
+     -1.5,
+     -0.8500000238418579,
+     1.901746153831482
+    ],
+    [
+     -1.5,
+     1.649999976158142,
+     1.901746153831482
+    ],
+    [
+     1.5,
+     1.649999976158142,
+     1.9017465114593506
+    ]
+   ],
+   [
+    [
+     1.5,
+     -0.8500000238418579,
+     1.9017465114593506
+    ],
+    [
+     -1.5,
+     -0.8500000238418579,
+     1.9017462730407715
+    ],
+    [
+     -1.499999761581421,
+     -0.8500000238418579,
+     -0.49825382232666016
+    ],
+    [
+     1.500000238418579,
+     -0.8500000238418579,
+     -0.49825358390808105
+    ]
+   ]
+  ],
+  "Trans_Wall_To_Floor": [
+   [
+    [
+     -1.5,
+     0.3017462491989136,
+     -0.3017463982105255
+    ],
+    [
+     1.5,
+     0.3017462491989136,
+     -0.3017463982105255
+    ],
+    [
+     1.5,
+     0.3017464280128479,
+     2.198253631591797
+    ],
+    [
+     -1.5,
+     0.3017464280128479,
+     2.198253631591797
+    ]
+   ],
+   [
+    [
+     -1.5,
+     0.30174630880355835,
+     -0.3017463982105255
+    ],
+    [
+     1.5,
+     0.30174630880355835,
+     -0.3017463982105255
+    ],
+    [
+     1.5,
+     -2.0982537269592285,
+     -0.3017462193965912
+    ],
+    [
+     -1.5,
+     -2.0982537269592285,
+     -0.3017462193965912
+    ]
+   ]
+  ],
+  "Trans_Ceiling_To_Floor": [
+   [
+    [
+     1.5,
+     -0.8500000238418579,
+     1.570000171661377
+    ],
+    [
+     -1.5,
+     -0.8500000238418579,
+     1.5699998140335083
+    ],
+    [
+     -1.5,
+     1.649999976158142,
+     1.5699998140335083
+    ],
+    [
+     1.5,
+     1.649999976158142,
+     1.570000171661377
+    ]
+   ],
+   [
+    [
+     1.5,
+     -0.8500000238418579,
+     1.570000171661377
+    ],
+    [
+     -1.5,
+     -0.8500000238418579,
+     1.5699999332427979
+    ],
+    [
+     -1.499999761581421,
+     -0.8500000238418579,
+     -0.8300001621246338
+    ],
+    [
+     1.500000238418579,
+     -0.8500000238418579,
+     -0.8299999237060547
+    ]
+   ],
+   [
+    [
+     1.5000001192092896,
+     -0.8499999642372131,
+     -0.3017462491989136
+    ],
+    [
+     -1.4999998807907104,
+     -0.8499999642372131,
+     -0.30174651741981506
+    ],
+    [
+     -1.5000001192092896,
+     -0.8500000834465027,
+     2.1982533931732178
+    ],
+    [
+     1.4999998807907104,
+     -0.8500000834465027,
+     2.198253631591797
+    ]
+   ],
+   [
+    [
+     1.5000001192092896,
+     -0.8500000238418579,
+     -0.3017462491989136
+    ],
+    [
+     -1.4999998807907104,
+     -0.8500000238418579,
+     -0.30174651741981506
+    ],
+    [
+     -1.4999998807907104,
+     1.5500000715255737,
+     -0.3017463982105255
+    ],
+    [
+     1.5000001192092896,
+     1.5500000715255737,
+     -0.3017461597919464
+    ]
+   ]
+  ]
+ }
+}
