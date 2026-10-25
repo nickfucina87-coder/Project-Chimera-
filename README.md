@@ -9,4 +9,7 @@ Asymmetric survival horror built around shared infrastructure: the machinery hum
 - [Asset requirements manifest](docs/ASSET_MANIFEST.csv)
 - [Task board](docs/AGENT_TASK_BOARD.md)
 
-Offline solo, co-op PvE and asymmetric PvP are design targets. This repository currently documents the design; it does not prove local Unreal implementation or acquired assets. October 31 is a progress checkpoint, not a scope-cutting deadline.
+## Blender warehouse
+- [Current scene, restore instructions, exports, and previews](blender/README.md)
+
+Offline solo, co-op PvE and asymmetric PvP are design targets. October 31 is a progress checkpoint, not a scope-cutting deadline.

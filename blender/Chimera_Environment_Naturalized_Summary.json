@@ -1,0 +1,162 @@
+{
+  "project": "Chimera warehouse naturalized canyon blockout",
+  "scale": "1 Blender unit = 1 metre",
+  "environment_collections": {
+    "ENV_01_TERRAIN__UE5_LANDSCAPE_PROXY": 2,
+    "ENV_02_CLIFFS_AND_ROCKS__SWAP_STATIC_MESH": 144,
+    "ENV_03_WATERFALL_AND_RIVER__SWAP_WATER_SYSTEM": 14,
+    "ENV_04_BRIDGE__KEEP_OR_SWAP_MODULAR": 41,
+    "ENV_05_APPROACH_ROAD_AND_CHECKPOINT": 39,
+    "ENV_06_FOREST__SWAP_FOLIAGE": 210,
+    "ENV_07_FACILITY_EDGE_AND_UTILITIES": 122
+  },
+  "swap_manifest_csv": "Chimera_Environment_Naturalized_Swap_Manifest.csv",
+  "river_spline_control_points": [
+    {
+      "name": "RIVER_SPLINE_CP_00",
+      "x_m": -160.0,
+      "y_m": -72.34,
+      "z_m": -32.9,
+      "half_width_m": 9.42
+    },
+    {
+      "name": "RIVER_SPLINE_CP_01",
+      "x_m": -133.33,
+      "y_m": -72.16,
+      "z_m": -32.9,
+      "half_width_m": 8.95
+    },
+    {
+      "name": "RIVER_SPLINE_CP_02",
+      "x_m": -106.67,
+      "y_m": -73.07,
+      "z_m": -32.9,
+      "half_width_m": 11.48
+    },
+    {
+      "name": "RIVER_SPLINE_CP_03",
+      "x_m": -80.0,
+      "y_m": -78.92,
+      "z_m": -32.9,
+      "half_width_m": 11.39
+    },
+    {
+      "name": "RIVER_SPLINE_CP_04",
+      "x_m": -53.33,
+      "y_m": -74.86,
+      "z_m": -32.9,
+      "half_width_m": 8.89
+    },
+    {
+      "name": "RIVER_SPLINE_CP_05",
+      "x_m": -26.67,
+      "y_m": -74.87,
+      "z_m": -32.9,
+      "half_width_m": 9.51
+    },
+    {
+      "name": "RIVER_SPLINE_CP_06",
+      "x_m": 0.0,
+      "y_m": -72.9,
+      "z_m": -32.9,
+      "half_width_m": 11.88
+    },
+    {
+      "name": "RIVER_SPLINE_CP_07",
+      "x_m": 26.67,
+      "y_m": -68.98,
+      "z_m": -32.9,
+      "half_width_m": 10.74
+    },
+    {
+      "name": "RIVER_SPLINE_CP_08",
+      "x_m": 53.33,
+      "y_m": -74.69,
+      "z_m": -32.9,
+      "half_width_m": 8.62
+    },
+    {
+      "name": "RIVER_SPLINE_CP_09",
+      "x_m": 80.0,
+      "y_m": -74.28,
+      "z_m": -32.9,
+      "half_width_m": 10.23
+    },
+    {
+      "name": "RIVER_SPLINE_CP_10",
+      "x_m": 106.67,
+      "y_m": -76.48,
+      "z_m": -32.9,
+      "half_width_m": 12.0
+    },
+    {
+      "name": "RIVER_SPLINE_CP_11",
+      "x_m": 133.33,
+      "y_m": -77.95,
+      "z_m": -32.9,
+      "half_width_m": 10.0
+    },
+    {
+      "name": "RIVER_SPLINE_CP_12",
+      "x_m": 160.0,
+      "y_m": -71.46,
+      "z_m": -32.9,
+      "half_width_m": 8.67
+    }
+  ],
+  "gameplay_guides": [
+    {
+      "name": "GAMEPLAY_GUIDE_PLAYER_SPAWN_APPROACH",
+      "location_m": [
+        15.0,
+        -156.0,
+        1.0
+      ]
+    },
+    {
+      "name": "GAMEPLAY_GUIDE_BRIDGE_ENTRY_SOUTH",
+      "location_m": [
+        0.0,
+        -101.0,
+        1.0
+      ]
+    },
+    {
+      "name": "GAMEPLAY_GUIDE_BRIDGE_ENTRY_NORTH",
+      "location_m": [
+        0.0,
+        -45.0,
+        1.0
+      ]
+    },
+    {
+      "name": "GAMEPLAY_GUIDE_FACILITY_MAIN_ENTRANCE",
+      "location_m": [
+        0.0,
+        -36.0,
+        1.0
+      ]
+    },
+    {
+      "name": "GAMEPLAY_GUIDE_WATER_HAZARD_CENTER",
+      "location_m": [
+        0.0,
+        -74.0,
+        -32.2
+      ]
+    },
+    {
+      "name": "GAMEPLAY_GUIDE_WATERFALL_HAZARD",
+      "location_m": [
+        105.0,
+        -58.0,
+        -18.0
+      ]
+    }
+  ],
+  "source_blend": "Chimera_Warehouse_Environment.blend",
+  "notes": [
+    "Current canyon is a visual blockout; UE5 water, collision, AI navigation and gameplay volumes still need implementation.",
+    "ENV_90 guide markers are excluded from mesh FBX export."
+  ]
+}

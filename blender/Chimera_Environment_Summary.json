@@ -1,0 +1,41 @@
+{
+  "project": "Project Chimera warehouse environment blockout",
+  "scale": "metres, 1 Blender unit = 1 metre",
+  "axes": "Warehouse entrance faces -Y; bridge and approach extend south",
+  "landscape_extent_m": {
+    "x": [
+      -170,
+      170
+    ],
+    "y": [
+      -180,
+      160
+    ],
+    "canyon_bottom_z": -33
+  },
+  "collections": {
+    "ENV_01_TERRAIN__UE5_LANDSCAPE_PROXY": 2,
+    "ENV_02_CLIFFS_AND_ROCKS__SWAP_STATIC_MESH": 107,
+    "ENV_03_WATERFALL_AND_RIVER__SWAP_WATER_SYSTEM": 8,
+    "ENV_04_BRIDGE__KEEP_OR_SWAP_MODULAR": 41,
+    "ENV_05_APPROACH_ROAD_AND_CHECKPOINT": 39,
+    "ENV_06_FOREST__SWAP_FOLIAGE": 210,
+    "ENV_07_FACILITY_EDGE_AND_UTILITIES": 122,
+    "ENV_90_ZONE_MARKERS__DO_NOT_EXPORT": 10
+  },
+  "swap_manifest_csv": "Chimera_Environment_Swap_Manifest.csv",
+  "zone_anchors": [
+    "ZONE_A_OUTDOOR_APPROACH",
+    "ZONE_B_BRIDGE_TRANSITION",
+    "ZONE_C_MAIN_WAREHOUSE",
+    "ZONE_D_LOADING_AND_UTILITY_YARD",
+    "ZONE_E_WATERFALL_CANYON"
+  ],
+  "export_notes": [
+    "Exclude ENV_90_ZONE_MARKERS__DO_NOT_EXPORT from geometry export.",
+    "ENV_01 terrain is a landscape proxy for UE5 Landscape rebuild.",
+    "SWAP_TREE_ and SWAP_ROCK_ are one object per asset instance; transform origin is at base.",
+    "Waterfall sheets and splash are visual placeholders for UE5 Water/Niagara.",
+    "Existing warehouse collections remain separate from ENV_ collections."
+  ]
+}
