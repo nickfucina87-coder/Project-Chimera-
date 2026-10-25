@@ -1,0 +1,58 @@
+{
+    "FileVersion":  3,
+    "EngineAssociation":  "5.8",
+    "Category":  "",
+    "Description":  "",
+    "Plugins":  [
+                    {
+                        "Name":  "ModelingToolsEditorMode",
+                        "Enabled":  true,
+                        "TargetAllowList":  [
+                                                "Editor"
+                                            ]
+                    },
+                    {
+                        "Name":  "GameplayStateTree",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "ModelContextProtocol",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "Aura",
+                        "Enabled":  true,
+                        "SupportedTargetPlatforms":  [
+                                                         "Win64",
+                                                         "Mac"
+                                                     ]
+                    },
+                    {
+                        "Name":  "AllToolsets",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "PythonScriptPlugin",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "EditorScriptingUtilities",
+                        "Enabled":  true
+                    },
+                    {
+                        "Name":  "ProceduralVegetationEditor",
+                        "Enabled":  true
+                    }
+                ],
+    "Modules":  [
+                    {
+                        "Name":  "Chimera",
+                        "AdditionalDependencies":  [
+                                                       "Engine",
+                                                       "EnhancedInput"
+                                                   ],
+                        "Type":  "Runtime",
+                        "LoadingPhase":  "Default"
+                    }
+                ]
+}
