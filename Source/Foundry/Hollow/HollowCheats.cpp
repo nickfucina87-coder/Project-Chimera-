@@ -37,6 +37,12 @@ struct FHollowCheats
 		else if (V == TEXT("pause")) G->TogglePause(EPauseTab::Inventory);
 		else if (V == TEXT("xp")) G->GainXp(FMath::Max(1, Int(1)));
 		else if (V == TEXT("reply")) G->ChooseTalk(Int(1) - 1);
+		else if (V == TEXT("builder")) G->OpenBuilder();
+		else if (V == TEXT("bstep")) G->BuilderStep(Int(1));
+		else if (V == TEXT("bpick") && Args.Num() > 2) G->BuilderPick(Args[1], Rest(2));
+		else if (V == TEXT("bfinish")) G->BuilderFinish();
+		else if (V == TEXT("move")) G->CombatMove(false);
+		else if (V == TEXT("cell")) G->ClickCell(FIntPoint(Int(1), Int(2)));
 		else if (V == TEXT("spot"))
 		{
 			// jump to the Nth tool-gated spot on this hex and refresh the aura

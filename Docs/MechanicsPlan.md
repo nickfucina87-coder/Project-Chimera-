@@ -177,7 +177,19 @@ The goal is to move from FF-style turns toward Foundry's pf2e encounter rules wh
 - **Bestiary** (662 creatures from Monster Core plus legacy Bestiary entries that weren't remastered). Each has level, rarity, size, traits, HP, AC, Perception, senses, speeds, saves, immunities, weaknesses, resistances, strikes (bonus, damage, traits, effects), abilities (with their rules) and spells.
 - **Hazards** (54): Stealth, disable, reset, AC, HP, actions.
 
-### Morning queue: needs the editor closed (header changes)
+### Morning queue: done 2026-10-26 (commit e2ea9cd, PIE smoke-tested)
+
+The builder (a Magus showed all 8 hybrid studies with rarity tags), rules engine v1, shops and loot by availability, and the hex grid all work. In PIE, foes closed in along a path, and the gold and red markers, Stride and Step, and the orbit camera all worked.
+
+**Next:**
+- the Summoner eidolon and Cleric deity choices
+- level-up feat choices driven by ChoiceSets
+- library bestiary creatures as foes, scaled to hex level
+- reactions and Attacks of Opportunity
+- more rule-element keys (DamageDice, Resistance, AdjustDegreeOfSuccess)
+- predicates
+
+### Original morning list
 
 1. **`HollowLibrary.h`:** add `FLibChoice` (feature, class, level, flag, options), `FLibCreature`, `FLibHazard`, and a `Rules` field (raw JSON object array) on entries; parse them in `HollowLibrary.cpp`.
 2. **Character builder wizard** (`HollowUI.h` + `HollowGameMode.h` state):
