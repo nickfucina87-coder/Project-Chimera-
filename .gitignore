@@ -11,3 +11,8 @@ DerivedDataCache/
 .idea/
 ExternalAssets/
 .claude/
+# Fab / Marketplace content: local only, never commit (public repo)
+Content/*
+!Content/Hollow/
+!Content/Collections/
+!Content/Developers/
