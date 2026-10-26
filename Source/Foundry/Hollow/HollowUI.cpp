@@ -16,6 +16,8 @@
 #include "Widgets/Images/SImage.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Font.h"
+#include "ImageUtils.h"
+#include "Misc/Paths.h"
 #include "Framework/Text/SlateTextRun.h"
 #include "Styling/SlateStyle.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
@@ -54,6 +56,64 @@ namespace
 		B->Margin = FMargin(Margin);
 		Cache.Add(Path, B);
 		return B;
+	}
+	// Art from Content/Hollow/EmberfallArt (Seph's pack), read straight from the PNGs so no import step is needed.
+	const FSlateBrush* Png(const FString& Rel, ESlateBrushDrawType::Type Draw = ESlateBrushDrawType::Image, float Margin = 0.f)
+	{
+		static TMap<FString, FSlateBrush*> Cache;
+		const FString Key = Rel + FString::SanitizeFloat(Margin) + FString::FromInt((int32)Draw);
+		if (FSlateBrush** Found = Cache.Find(Key)) return *Found;
+		FSlateBrush* B = nullptr;
+		const FString File = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Hollow/EmberfallArt"), Rel + TEXT(".png"));
+		if (FPaths::FileExists(File))
+			if (UTexture2D* T = FImageUtils::ImportFileAsTexture2D(File))
+			{
+				T->AddToRoot();
+				B = new FSlateBrush();
+				B->SetResourceObject(T);
+				B->ImageSize = FVector2D(T->GetSizeX(), T->GetSizeY());
+				B->DrawAs = Draw;
+				B->Margin = FMargin(Margin);
+			}
+		Cache.Add(Key, B);
+		return B;
+	}
+	const FSlateBrush* PanelArt() { return Png(TEXT("UI/Panel_Button_Border_Art/Panel_Button_Border_Art_001"), ESlateBrushDrawType::Box, 0.16f); }
+	const FSlateBrush* Icon(const FString& Name) { return Png(TEXT("Battle/Icons_128/") + Name); }
+	// Which painted icon fits an item: our own items by id, library items by weapon group / armor category / name.
+	const FSlateBrush* ItemArt(const FItemDef& D)
+	{
+		static const TMap<FString, FString> Own = { { TEXT("potion"), TEXT("red_potion") }, { TEXT("holy"), TEXT("blue_potion") }, { TEXT("charm"), TEXT("amulet") },
+			{ TEXT("trinket"), TEXT("ring") }, { TEXT("hatchet"), TEXT("battleaxe") }, { TEXT("picks"), TEXT("dagger") } };
+		FString N;
+		if (const FString* O = Own.Find(D.Id)) N = *O;
+		else if (const FLibItem* L = HollowLib::Item(D.LibName))
+		{
+			static const TMap<FString, FString> Group = { { TEXT("sword"), TEXT("longsword") }, { TEXT("axe"), TEXT("battleaxe") }, { TEXT("club"), TEXT("mace") },
+				{ TEXT("hammer"), TEXT("warhammer") }, { TEXT("flail"), TEXT("mace") }, { TEXT("knife"), TEXT("dagger") }, { TEXT("bow"), TEXT("longbow") },
+				{ TEXT("crossbow"), TEXT("crossbow") }, { TEXT("sling"), TEXT("sling") }, { TEXT("spear"), TEXT("spear") }, { TEXT("polearm"), TEXT("spear") },
+				{ TEXT("pick"), TEXT("warhammer") }, { TEXT("shield"), TEXT("shield") }, { TEXT("dart"), TEXT("dagger") }, { TEXT("brawling"), TEXT("mace") } };
+			const FString Ln = L->Name.ToLower();
+			if (L->Type == TEXT("weapon")) N = Ln.Contains(TEXT("staff")) ? TEXT("quarterstaff") : Group.FindRef(L->Group);
+			else if (L->Type == TEXT("armor")) N = L->Category == TEXT("heavy") ? TEXT("plate_cuirass") : L->Category == TEXT("medium") ? TEXT("chainmail") : L->Category == TEXT("light") ? TEXT("leather_armor") : TEXT("padded_gambeson");
+			else if (L->Type == TEXT("shield")) N = TEXT("shield");
+			else
+				for (const TCHAR* K : { TEXT("ring"), TEXT("amulet"), TEXT("boots"), TEXT("helmet"), TEXT("robe"), TEXT("wand"), TEXT("scroll") })
+					if (Ln.Contains(K)) { N = K; break; }
+			if (N.IsEmpty() && L->Type == TEXT("consumable")) N = Ln.Contains(TEXT("scroll")) ? TEXT("scroll") : Ln.Contains(TEXT("healing")) ? TEXT("red_potion") : TEXT("blue_potion");
+		}
+		return N.IsEmpty() ? nullptr : Png(TEXT("Items/Icons_128/") + N);
+	}
+	// Dialogue portraits: the townsfolk who have a painted face, and the expression the conversation calls for.
+	const FSlateBrush* Portrait(const FString& NpcId, int32 Mood)
+	{
+		static const TMap<FString, FString> Who = { { TEXT("maren"), TEXT("id3") }, { TEXT("tobb"), TEXT("id4") }, { TEXT("ysolde"), TEXT("id1") } };
+		static const TMap<FString, int32> Base = { { TEXT("id1"), 1 }, { TEXT("id2"), 5 }, { TEXT("id3"), 9 }, { TEXT("id4"), 13 } };
+		static const TCHAR* Moods[] = { TEXT("neutral"), TEXT("friendly"), TEXT("angry"), TEXT("worried") };
+		const FString* Id = Who.Find(NpcId);
+		if (!Id) return nullptr;
+		const int32 N = Base[*Id] + FMath::Clamp(Mood, 0, 3);
+		return Png(FString::Printf(TEXT("NPCs/Generic_Portrait_Expressions/Generic_Portrait_Expressions_%03d_%s_%s"), N, **Id, Moods[FMath::Clamp(Mood, 0, 3)]));
 	}
 	const FSlateBrush* Frame() { return TexBrush(TEXT("/Game/Hollow/UI/Borders/panel-border-010.panel-border-010"), ESlateBrushDrawType::Box, 0.4f); }
 	// Elemental frames sliced by UV from the 10x5 card-frame sheet (Docs/Concept/card_frames_sheet.png).
@@ -129,6 +189,8 @@ namespace
 	}
 	TSharedRef<SWidget> Panel(const TSharedRef<SWidget>& Content, const FLinearColor& Bg = PanelC, const FMargin& Pad = FMargin(14), bool bFrame = true)
 	{
+		if (bFrame && Bg.GetLuminance() < 0.25f && PanelArt())
+			return SNew(SBorder).BorderImage(PanelArt()).BorderBackgroundColor(FLinearColor(1.f, 1.f, 1.f, FMath::Max(0.9f, Bg.A))).Padding(Pad + FMargin(10, 8))[Content];
 		TSharedRef<SOverlay> O = SNew(SOverlay)
 			+ SOverlay::Slot()[SNew(SBorder).BorderImage(Round()).BorderBackgroundColor(Bg).Padding(Pad)[Content]];
 		if (bFrame && Frame())
@@ -426,8 +488,8 @@ TSharedRef<SWidget> SHollowUI::BuildTitle()
 			SNew(SVerticalBox)
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center)
 			[
-				SNew(STextBlock).Text(FText::FromString(TEXT("EMBERFALL"))).Font(TitleFont).ColorAndOpacity(FSlateColor(C(0xF2A54A)))
-				.ShadowOffset(FVector2D(0, 4)).ShadowColorAndOpacity(FLinearColor(0.35f, 0.05f, 0.02f, 0.9f))
+				Png(TEXT("UI/Foundry_Emberfall_Logo/Foundry_Emberfall_Logo")) ? StaticCastSharedRef<SWidget>(SNew(SBox).WidthOverride(820).HeightOverride(334)[SNew(SImage).Image(Png(TEXT("UI/Foundry_Emberfall_Logo/Foundry_Emberfall_Logo")))])
+				: StaticCastSharedRef<SWidget>(SNew(STextBlock).Text(FText::FromString(TEXT("EMBERFALL"))).Font(TitleFont).ColorAndOpacity(FSlateColor(C(0xF2A54A))).ShadowOffset(FVector2D(0, 4)).ShadowColorAndOpacity(FLinearColor(0.35f, 0.05f, 0.02f, 0.9f)))
 			]
 			+ SVerticalBox::Slot().AutoHeight().HAlign(HAlign_Center).Padding(0, 0, 0, 6)
 			[
@@ -979,13 +1041,16 @@ TSharedRef<SWidget> SHollowUI::BuildTalk()
 
 	// portrait medallion: the speaker's colours, their initial in Cinzel, ringed in their hat colour
 	static FSlateRoundedBoxBrush Outer(FLinearColor::White, 56.f), Inner(FLinearColor::White, 51.f);
-	const TSharedRef<SWidget> Portrait = SNew(SBox).WidthOverride(112).HeightOverride(112)
+	const int32 Mood = V.LastCheck.IsEmpty() ? 0 : V.bLastOk ? 1 : 2;
+	const FSlateBrush* Face = Portrait(V.NpcId, Mood);
+	const TSharedRef<SWidget> Medal = SNew(SBox).WidthOverride(112).HeightOverride(112)
 		[
 			SNew(SOverlay)
 			+ SOverlay::Slot()[SNew(SBorder).BorderImage(&Outer).BorderBackgroundColor(N->Hat)]
 			+ SOverlay::Slot().Padding(5)[SNew(SBorder).BorderImage(&Inner).BorderBackgroundColor(N->Body * 0.8f)
 				.HAlign(HAlign_Center).VAlign(VAlign_Center)[TF(N->Name.Left(1), Display(52), N->Skin, false)]]
 		];
+	const TSharedRef<SWidget> PortraitW = Face ? StaticCastSharedRef<SWidget>(SNew(SBox).WidthOverride(170).HeightOverride(114)[SNew(SImage).Image(Face)]) : Medal;
 
 	TSharedRef<SVerticalBox> Speech = SNew(SVerticalBox);
 	Speech->AddSlot().AutoHeight()
@@ -1075,7 +1140,7 @@ TSharedRef<SWidget> SHollowUI::BuildTalk()
 			+ SVerticalBox::Slot().AutoHeight()
 			[
 				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0, 0, 18, 0)[Portrait]
+				+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Top).Padding(0, 0, 18, 0)[PortraitW]
 				+ SHorizontalBox::Slot().FillWidth(1.f)[Speech]
 			]
 			+ SVerticalBox::Slot().AutoHeight().Padding(130, 4, 0, 0)[Resp]
@@ -1292,7 +1357,8 @@ TSharedRef<SWidget> SHollowUI::BuildSlot(int32 Bag, int32 Slot)
 	O->AddSlot().Padding(2)[SNew(SBorder).BorderImage(Round()).BorderBackgroundColor(C(0x120E16, 0.95f))];
 	if (D)
 	{
-		if (const FSlateBrush* Ic = Sprite(D->Icon))
+		if (const FSlateBrush* Art = ItemArt(*D)) O->AddSlot().Padding(4)[SNew(SImage).Image(Art)];
+		else if (const FSlateBrush* Ic = Sprite(D->Icon))
 			O->AddSlot().Padding(10)[SNew(SImage).Image(Ic).ColorAndOpacity(D->Tint)];
 		if (S->Count > 1) O->AddSlot().HAlign(HAlign_Right).VAlign(VAlign_Bottom).Padding(5, 3)[TF(FString::FromInt(S->Count), Display(13), Fg, false)];
 		if (D->Charges > 0)
@@ -1363,7 +1429,7 @@ TSharedRef<SWidget> SHollowUI::BuildInventory()
 			[
 				SNew(SOverlay)
 				+ SOverlay::Slot()[SNew(SBorder).BorderImage(Round()).BorderBackgroundColor(HollowItems::RarityColor(D->Rarity) * 0.5f)]
-				+ SOverlay::Slot().Padding(14)[Sprite(D->Icon) ? StaticCastSharedRef<SWidget>(SNew(SImage).Image(Sprite(D->Icon)).ColorAndOpacity(D->Tint)) : StaticCastSharedRef<SWidget>(SNew(SSpacer))]
+				+ SOverlay::Slot().Padding(ItemArt(*D) ? 4 : 14)[ItemArt(*D) ? StaticCastSharedRef<SWidget>(SNew(SImage).Image(ItemArt(*D))) : Sprite(D->Icon) ? StaticCastSharedRef<SWidget>(SNew(SImage).Image(Sprite(D->Icon)).ColorAndOpacity(D->Tint)) : StaticCastSharedRef<SWidget>(SNew(SSpacer))]
 			]
 		];
 		Det->AddSlot().AutoHeight()[TF(D->Name, Display(22), HollowItems::RarityColor(D->Rarity))];
@@ -1487,7 +1553,7 @@ TSharedRef<SWidget> SHollowUI::BuildTrade()
 	{
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0, 0, 8, 0)
-			[SNew(SBox).WidthOverride(34).HeightOverride(34)[Sprite(D.Icon) ? StaticCastSharedRef<SWidget>(SNew(SImage).Image(Sprite(D.Icon)).ColorAndOpacity(D.Tint)) : StaticCastSharedRef<SWidget>(SNew(SSpacer))]]
+			[SNew(SBox).WidthOverride(40).HeightOverride(40)[ItemArt(D) ? StaticCastSharedRef<SWidget>(SNew(SImage).Image(ItemArt(D))) : Sprite(D.Icon) ? StaticCastSharedRef<SWidget>(SNew(SImage).Image(Sprite(D.Icon)).ColorAndOpacity(D.Tint)) : StaticCastSharedRef<SWidget>(SNew(SSpacer))]]
 			+ SHorizontalBox::Slot().FillWidth(1.f).VAlign(VAlign_Center)
 			[
 				SNew(SVerticalBox)
@@ -1651,13 +1717,18 @@ TSharedRef<SWidget> SHollowUI::BuildAbilities()
 	for (const FString& A : HollowItems::AbilityList())
 	{
 		const bool bHas = G->HasAbility(A);
-		Row->AddSlot().AutoWidth().Padding(0, 0, 4, 0)[Chip(HollowItems::AbilityName(A), bHas ? C(0x3F5A2E, 0.9f) : C(0x1D1724, 0.6f), bHas ? FLinearColor::White : C(0x6A5E66))];
+		static const TMap<FString, FString> AbIcon = { { TEXT("dig"), TEXT("dig") }, { TEXT("light"), TEXT("detect") }, { TEXT("fire"), TEXT("fire") },
+			{ TEXT("cut"), TEXT("cut_brambles") }, { TEXT("climb"), TEXT("climb") }, { TEXT("pick"), TEXT("unlock") } };
+		if (const FSlateBrush* Ic = Icon(AbIcon.FindRef(A)))
+			Row->AddSlot().AutoWidth().Padding(0, 0, 2, 0).VAlign(VAlign_Center)[SNew(SBox).WidthOverride(26).HeightOverride(26)[SNew(SImage).Image(Ic).ColorAndOpacity(bHas ? FLinearColor::White : FLinearColor(0.35f, 0.32f, 0.38f, 0.8f))]];
+		Row->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Chip(HollowItems::AbilityName(A), bHas ? C(0x3F5A2E, 0.9f) : C(0x1D1724, 0.6f), bHas ? FLinearColor::White : C(0x6A5E66))];
 	}
 	for (const FBuff& B : G->Buffs)
 		Row->AddSlot().AutoWidth().Padding(8, 0, 0, 0)[Chip(B.Name, B.Col * 0.45f)];
 	// stealth readout: light where you stand, whether anything sees you, and your cover from it
 	const FLinearColor VisCol = G->HeroVis == AHollowGameMode::EVis::Observed ? C(0x7A2620) : G->HeroVis == AHollowGameMode::EVis::Concealed ? C(0x6A4E1E) : C(0x2E4A2A);
-	Row->AddSlot().AutoWidth().Padding(12, 0, 0, 0)[Chip(G->VisLabel() + (G->bNoticed ? TEXT("  (spotted)") : TEXT("")) + (G->bLanternLit ? TEXT("") : TEXT("  lantern hooded")), VisCol)];
+	if (const FSlateBrush* Ic = Icon(TEXT("stealth"))) Row->AddSlot().AutoWidth().Padding(12, 0, 2, 0).VAlign(VAlign_Center)[SNew(SBox).WidthOverride(26).HeightOverride(26)[SNew(SImage).Image(Ic)]];
+	Row->AddSlot().AutoWidth().Padding(2, 0, 0, 0)[Chip(G->VisLabel() + (G->bNoticed ? TEXT("  (spotted)") : TEXT("")) + (G->bLanternLit ? TEXT("") : TEXT("  lantern hooded")), VisCol)];
 	return Row;
 }
 

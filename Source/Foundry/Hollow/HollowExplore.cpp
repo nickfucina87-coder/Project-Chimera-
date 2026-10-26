@@ -2,7 +2,10 @@
 // level-up choices, exploration buffs (and the aura that shows them), structured dialogue choices, and Pathbuilder import.
 #include "HollowGameMode.h"
 
+#include "Components/MaterialBillboardComponent.h"
 #include "Components/PointLightComponent.h"
+#include "ImageUtils.h"
+#include "Misc/Paths.h"
 #include "Components/StaticMeshComponent.h"
 #include "Dom/JsonObject.h"
 #include "Engine/World.h"
@@ -414,6 +417,46 @@ namespace
 		for (const FFeatureDef& D : L) if (Kind == D.Kind) return &D;
 		return nullptr;
 	}
+	// Paper cutouts: a painted PNG on a camera-facing card, the Paper Mario way. Textures come straight from
+	// Content/Hollow/EmberfallArt so new art drops in without an import step.
+	UTexture2D* ArtTex(const FString& Rel)
+	{
+		static TMap<FString, UTexture2D*> Cache;
+		if (UTexture2D** Found = Cache.Find(Rel)) return *Found;
+		UTexture2D* T = nullptr;
+		const FString File = FPaths::Combine(FPaths::ProjectContentDir(), TEXT("Hollow/EmberfallArt"), Rel + TEXT(".png"));
+		if (FPaths::FileExists(File)) { T = FImageUtils::ImportFileAsTexture2D(File); if (T) T->AddToRoot(); }
+		Cache.Add(Rel, T);
+		return T;
+	}
+	UMaterialBillboardComponent* Paper(AActor* A, UMaterialInterface* Base, const FString& Rel, float Height)
+	{
+		UTexture2D* T = ArtTex(Rel);
+		if (!A || !Base || !T) return nullptr;
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, A);
+		M->SetTextureParameterValue(TEXT("Tex"), T);
+		M->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.62f, 0.6f, 0.66f, 1.f));   // sits in the night instead of glowing
+		UMaterialBillboardComponent* B = NewObject<UMaterialBillboardComponent>(A);
+		B->SetupAttachment(A->GetRootComponent());
+		const float W = Height * T->GetSizeX() / FMath::Max(1, T->GetSizeY());
+		B->AddElement(M, nullptr, false, W * 0.5f, Height * 0.5f, nullptr);
+		B->SetRelativeLocation(FVector(0, 0, Height * 0.5f));
+		B->RegisterComponent();
+		A->AddInstanceComponent(B);
+		return B;
+	}
+	// Before and after art for each tool spot (Seph's Six_Tool_Spots_Paired_States sheet).
+	FString SpotArt(const FString& Kind, bool bDone)
+	{
+		static const TMap<FString, TPair<const TCHAR*, const TCHAR*>> M = {
+			{ TEXT("dig"), { TEXT("001_dig_mound"), TEXT("002_dig_hole") } }, { TEXT("cut"), { TEXT("003_brambles"), TEXT("004_brambles_cleared") } },
+			{ TEXT("climb"), { TEXT("005_ledge"), TEXT("006_ledge_rope") } }, { TEXT("pick"), { TEXT("007_box_closed"), TEXT("008_box_open") } },
+			{ TEXT("dark"), { TEXT("009_cave"), TEXT("009_cave") } }, { TEXT("fire"), { TEXT("011_beacon_unlit"), TEXT("012_beacon_lit") } } };
+		const auto* P = M.Find(Kind);
+		return P ? FString::Printf(TEXT("Environment/Six_Tool_Spots_Paired_States/Six_Tool_Spots_Paired_States_%s"), bDone ? P->Value : P->Key) : FString();
+	}
+	float SpotHeight(const FString& Kind) { return Kind == TEXT("climb") || Kind == TEXT("dark") ? 420.f : Kind == TEXT("fire") ? 300.f : Kind == TEXT("cut") ? 260.f : 170.f; }
+
 	FLinearColor AbilityCol(const FString& A)
 	{
 		if (A == TEXT("dig")) return FLinearColor(0.85f, 0.65f, 0.35f);
@@ -439,11 +482,14 @@ void AHollowGameMode::BuildFeatures(FHollowHex& Hex, TFunctionRef<bool(float, fl
 		while (Used.Contains(K)) K = (K + 1) % 6;
 		Used.Add(K);
 		FVector P;
-		if (!Pick(700.f, 1900.f, 200.f, P) || Hex.FeatureDone[i]) continue;
+		if (!Pick(700.f, 1900.f, 200.f, P)) continue;
 		const FString Kind = Kinds[K];
 		AActor* A = Local(HollowArt::NewActor(W, P, Rng.FRandRange(0.f, 360.f)));
+		// spent spots stay in the world in their "after" state: a dug hole, an open box, a lit beacon
+		if (Hex.FeatureDone[i]) { Paper(A, SpriteMat, SpotArt(Kind, true), SpotHeight(Kind)); continue; }
 		const FLinearColor Iron(0.18f, 0.17f, 0.16f), Wood(0.32f, 0.2f, 0.11f);
-		if (Kind == TEXT("dig"))
+		if (Paper(A, SpriteMat, SpotArt(Kind, false), SpotHeight(Kind))) {}
+		else if (Kind == TEXT("dig"))
 		{
 			HollowArt::Part(A, EShape::Sphere, FVector(0, 0, -10), FVector(150, 120, 40), FLinearColor(0.22f, 0.15f, 0.09f));
 			HollowArt::Part(A, EShape::Cube, FVector(30, -20, 30), FVector(8, 30, 60), Wood, FRotator(0, 0, 20));
@@ -630,7 +676,15 @@ void AHollowGameMode::UseFeature(const FInteractable& I)
 			GainXp(5);
 		}
 		else FeatureLoot(I.Id, I.Loc, Msg);
-		if (I.Id != TEXT("fire")) if (AActor* A = I.Actor.Get()) A->Destroy();
+		if (AActor* A = I.Actor.Get())
+		{
+			// swap the cutout to its "after" art, and put the hint ring out
+			TInlineComponentArray<UMaterialBillboardComponent*> Cards(A);
+			if (Cards.Num()) { for (UMaterialBillboardComponent* B : Cards) B->DestroyComponent(); Paper(A, SpriteMat, SpotArt(I.Id, true), SpotHeight(I.Id)); }
+			else if (I.Id != TEXT("fire")) A->Destroy();
+			if (IsValid(A)) { TInlineComponentArray<UStaticMeshComponent*> Parts(A); for (UStaticMeshComponent* Pm : Parts) if (Pm->GetRelativeScale3D().Z < 0.05f) Pm->SetVisibility(false); }
+			FeatureGlows.RemoveAll([A](const TPair<TWeakObjectPtr<UStaticMeshComponent>, FString>& Gl) { return !Gl.Key.IsValid() || Gl.Key->GetOwner() == A; });
+		}
 		Interactables.RemoveAll([&](const FInteractable& X) { return X.Actor == I.Actor; });
 		NearIdx = INDEX_NONE;
 		GainXp(3);
