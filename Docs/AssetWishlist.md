@@ -45,3 +45,11 @@ Props and landmarks:
 
 ## 7. Optional
 - [ ] An Ollama model better at role-play than llama3.2 3B, e.g. `ollama pull qwen2.5:7b` or `llama3.1:8b`. The game picks it up automatically.
+
+
+## Seph haul 2026-10-25
+- [x] Fonts: Cinzel, IM Fell English, Alegreya (Content/Hollow/UI/Fonts)
+- [x] Road textures w/ normals: 7 ambientCG CC0 sets (Content/Hollow/Materials/Roads)
+- [x] Parchment/leather/fabric panels: 5 CC0 sets (Content/Hollow/UI/Panels)
+- [ ] Extra 9-slice borders beyond Kenney - none added
+

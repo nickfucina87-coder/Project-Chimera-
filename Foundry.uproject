@@ -3,6 +3,13 @@
 	"EngineAssociation": "5.8",
 	"Category": "",
 	"Description": "",
+	"Modules": [
+		{
+			"Name": "Foundry",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		}
+	],
 	"Plugins": [
 		{
 			"Name": "ModelingToolsEditorMode",
@@ -22,13 +29,10 @@
 		{
 			"Name": "ProceduralMeshComponent",
 			"Enabled": true
-		}
-	],
-	"Modules": [
+		},
 		{
-			"Name": "Foundry",
-			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"Name": "ProceduralVegetationEditor",
+			"Enabled": true
 		}
 	]
 }

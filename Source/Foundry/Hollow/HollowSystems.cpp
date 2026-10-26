@@ -227,7 +227,8 @@ void AHollowGameMode::NiagaraAt(const FString& System, const FVector& At, float 
 	UNiagaraSystem* S = Cache.FindRef(System).Get();
 	if (!S)
 	{
-		S = LoadObject<UNiagaraSystem>(nullptr, *FString::Printf(TEXT("/Niagara/DefaultAssets/Templates/Systems/%s.%s"), *System, *System));
+		S = System.StartsWith(TEXT("/")) ? LoadObject<UNiagaraSystem>(nullptr, *(System + TEXT(".") + FPaths::GetBaseFilename(System)))
+			: LoadObject<UNiagaraSystem>(nullptr, *FString::Printf(TEXT("/Niagara/DefaultAssets/Templates/Systems/%s.%s"), *System, *System));
 		if (!S) return;
 		Cache.Add(System, S);
 		KeepAlive.Add(S);
@@ -263,7 +264,8 @@ void AHollowGameMode::OnFootstep(const FVector& At)
 {
 	if (Mode != EHollowMode::Explore) return;
 	PlaySfx(TEXT("step"), 0.35f);
-	Burst(At + FVector(0, 0, 10), TEXT("smoke_04"), FLinearColor(0.25f, 0.22f, 0.18f) * 0.25f, 2, 40.f, 0.9f, 40.f, 30.f, 0.f, 90.f);
+	NiagaraAt(TEXT("/Game/NiagaraExamples/FX_Footstep/NS_Footstep_Gravel"), At + FVector(0, 0, 4), 1.f);
+	Burst(At + FVector(0, 0, 10), TEXT("smoke_04"), FLinearColor(0.25f, 0.22f, 0.18f) * 0.15f, 1, 40.f, 0.9f, 40.f, 30.f, 0.f, 90.f);
 }
 
 void AHollowGameMode::Zoom(float Delta)
@@ -528,6 +530,19 @@ void AHollowGameMode::TickTitle(float Dt)
 	const FVector Look = LocalOrigin + FVector(0, 0, 150.f);
 	ShowCam->SetActorLocationAndRotation(Loc, (Look - Loc).Rotation());
 	if (Mode != EHollowMode::Title) return;
+	{
+		static TWeakObjectPtr<AActor> EmberRig;
+		if (!EmberRig.IsValid())
+		{
+			AActor* Rig = HollowArt::NewActor(GetWorld(), Loc);
+			HollowArt::NiagaraPart(Rig, TEXT("/Game/Sparks_Embers/Niagara/NS_Embers01"), FVector::ZeroVector, 3.f);
+			HollowArt::NiagaraPart(Rig, TEXT("/Game/Sparks_Embers/Niagara/NS_Embers02"), FVector(0, 400, 0), 3.f);
+			EmberRig = Rig;
+			KeepAlive.Add(Rig);
+		}
+		const FRotator CR = ShowCam->GetActorRotation();
+		EmberRig->SetActorLocation(Loc + CR.Vector() * 1100.f - FVector(0, 0, 600.f));
+	}
 	EmberClock += Dt;
 	while (EmberClock > 0.05f)
 	{

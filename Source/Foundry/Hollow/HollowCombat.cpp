@@ -360,6 +360,7 @@ void AHollowGameMode::HurtFoe(int32 Idx, int32 Dmg, bool bCrit)
 	FloatText(Idx, FString::Printf(TEXT("%d%s"), Dmg, bCrit ? TEXT("!") : TEXT("")), bCrit ? FColor(255, 200, 60) : FColor::White);
 	Shake(Idx);
 	PlaySfx(bCrit ? TEXT("metal") : TEXT("hit"));
+	NiagaraAt(bCrit ? TEXT("/Game/Sparks_Embers/Niagara/NS_Sparks03") : TEXT("/Game/NiagaraExamples/FX_Weapons/Impacts/NS_Impact_Metal"), FighterPos(Idx), 1.f);
 	Burst(FighterPos(Idx), TEXT("spark_05"), bCrit ? FLinearColor(1.f, 0.7f, 0.2f) : FLinearColor(1.f, 0.85f, 0.7f), bCrit ? 22 : 12, 420.f, 0.5f, 34.f, 60.f, 600.f);
 	if (F.Hp <= 0)
 	{
@@ -399,6 +400,7 @@ void AHollowGameMode::HealHero(int32 Amount, const FString& Why)
 	CLog(FString::Printf(TEXT("%s: +%d HP."), *Why, H));
 	FloatText(0, FString::Printf(TEXT("+%d"), H), FColor(140, 255, 140));
 	PlaySfx(TEXT("magic"), 0.7f);
+	NiagaraAt(TEXT("/Game/NiagaraExamples/FX_PickUp/NS_Pickup_Success"), FighterPos(0) - FVector(0, 0, 100), 1.f);
 	Burst(FighterPos(0) - FVector(0, 0, 80), TEXT("light_02"), FLinearColor(0.4f, 1.f, 0.5f), 16, 80.f, 1.4f, 40.f, 160.f);
 }
 
@@ -521,7 +523,7 @@ void AHollowGameMode::PlayCard(int32 HandIndex)
 	case ECardFx::Intimidate:
 	{
 		const int32 Deg = HeroCheck(TEXT("intimidation"), Foe().Will + 10, TEXT("Demoralize"));
-		if (Deg >= 2) { Foe().Frightened = FMath::Max(Foe().Frightened, Deg == 3 ? 2 : 1); FloatText(T, TEXT("frightened"), FColor(200, 160, 255)); }
+		if (Deg >= 2) { Foe().Frightened = FMath::Max(Foe().Frightened, Deg == 3 ? 2 : 1); FloatText(T, TEXT("frightened"), FColor(200, 160, 255)); if (AActor* Pp = Foe().Puppet.Get()) HollowArt::NiagaraPart(Pp, TEXT("/Game/NiagaraExamples/FX_Player/NS_Player_DeBuff_Looping"), FVector::ZeroVector, 1.f); }
 		break;
 	}
 	case ECardFx::Feint:
@@ -572,7 +574,7 @@ void AHollowGameMode::PlayCard(int32 HandIndex)
 		const int32 Deg = Degree(Nat + Foe().Will, SpellDC(PC), Nat);
 		const int32 Fr = Deg == 3 ? 0 : Deg == 2 ? 1 : Deg == 1 ? 2 : 3;
 		CLog(FString::Printf(TEXT("%s Will save %d vs DC %d: %s."), *Foe().Name, Nat + Foe().Will, SpellDC(PC), DegreeName(Deg)));
-		if (Fr) { Foe().Frightened = FMath::Max(Foe().Frightened, Fr); FloatText(T, FString::Printf(TEXT("frightened %d"), Fr), FColor(200, 160, 255)); }
+		if (Fr) { Foe().Frightened = FMath::Max(Foe().Frightened, Fr); FloatText(T, FString::Printf(TEXT("frightened %d"), Fr), FColor(200, 160, 255)); if (AActor* Pp = Foe().Puppet.Get()) HollowArt::NiagaraPart(Pp, TEXT("/Game/NiagaraExamples/FX_Player/NS_Player_DeBuff_Looping"), FVector::ZeroVector, 1.f); }
 		break;
 	}
 	case ECardFx::ShieldSpell: C.F[0].GuardAc += 1; C.F[0].ShieldHp = 5; CLog(TEXT("A shimmering shield: +1 AC, absorbs 5.")); break;
@@ -598,8 +600,8 @@ void AHollowGameMode::PlayCard(int32 HandIndex)
 		else FloatText(T, TEXT("miss"), FColor(220, 220, 220));
 		break;
 	}
-	case ECardFx::Bless: C.BlessTurns = 3; CLog(TEXT("Blessed: +1 to attack rolls for 3 turns.")); break;
-	case ECardFx::BattleHymn: C.HymnTurns = 3; CLog(TEXT("Battle Hymn: +2 damage for 3 turns.")); break;
+	case ECardFx::Bless: if (AActor* Pp = C.F[0].Puppet.Get()) HollowArt::NiagaraPart(Pp, TEXT("/Game/NiagaraExamples/FX_Player/NS_Player_Buff_Looping"), FVector::ZeroVector, 1.f); C.BlessTurns = 3; CLog(TEXT("Blessed: +1 to attack rolls for 3 turns.")); break;
+	case ECardFx::BattleHymn: if (AActor* Pp = C.F[0].Puppet.Get()) HollowArt::NiagaraPart(Pp, TEXT("/Game/NiagaraExamples/FX_Player/NS_Player_Buff_Looping"), FVector::ZeroVector, 1.f); C.HymnTurns = 3; CLog(TEXT("Battle Hymn: +2 damage for 3 turns.")); break;
 	case ECardFx::Quicken: C.bQuicken = true; CLog(TEXT("Quickened: your next turn comes much sooner.")); break;
 	case ECardFx::LuckyCoin: C.bLucky = true; CLog(TEXT("You flip the coin. Fortune favours your next roll.")); break;
 	case ECardFx::SecondWind: HealHero(D(8) + 2 * PC.Level, TEXT("Second Wind")); break;

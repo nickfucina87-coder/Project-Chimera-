@@ -659,6 +659,29 @@ void AHollowGameMode::BuildLocal(const FIntPoint& Where)
 	default: BuildWild(H); break;
 	}
 	BuildFow(Hexes.FindChecked(Where));
+
+	// real grass and shrubs from the local Fab packs (skipped silently if they are not installed)
+	const FVector O = LocalOrigin;
+	const ETerr T = H.T;
+	auto Reject = [&](const FVector& P)
+	{
+		const FVector Rl = P - O;
+		if (FMath::Abs(Rl.Y) < 200.f && FMath::Abs(Rl.X) > 500.f) return true;           // main road strip
+		if (T == ETerr::Town) return Rl.Size2D() < 1560.f;
+		if (T == ETerr::Shrine || T == ETerr::Keep) return Rl.Size2D() < 650.f || (Rl.X > 300.f && T == ETerr::Keep);
+		return Rl.Size2D() < 480.f;
+	};
+	const int32 Count = T == ETerr::Town ? 900 : T == ETerr::Swamp ? 1100 : T == ETerr::Ruins || T == ETerr::Keep ? 1000 : 2600;
+	Local(HollowArt::GroundCover(GetWorld(), O, LocalRadius * 0.866f, Count, Where.X * 131 + Where.Y * 17 + 3, Reject));
+	FRandomStream PR(Where.X * 59 + Where.Y * 211 + 9);
+	const FString Kind = T == ETerr::Forest || T == ETerr::River ? TEXT("lingon") : T == ETerr::Shrine ? TEXT("anemone") : TEXT("heather");
+	for (int32 i = 0; i < (T == ETerr::Town ? 6 : 10); ++i)
+	{
+		const float A = PR.FRandRange(0.f, 2 * PI);
+		const float Rr = T == ETerr::Town ? PR.FRandRange(1600.f, 2000.f) : PR.FRandRange(600.f, 1900.f);
+		const FVector P = O + FVector(FMath::Cos(A) * Rr, FMath::Sin(A) * Rr, 0);
+		if (!Reject(P)) Local(HollowArt::Plants(GetWorld(), P, Kind, PR.RandRange(3, 7), 140.f, PR.RandRange(0, 99999)));
+	}
 }
 
 // Mossy boulders and pooled fog around the island edge, leaving the south and north road gaps open.

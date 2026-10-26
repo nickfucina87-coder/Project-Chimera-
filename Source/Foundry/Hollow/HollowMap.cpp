@@ -216,6 +216,7 @@ void AHollowGameMode::MapAction(const FIntPoint& H)
 		}
 		MapSelected.Reset();
 		EnterHex(H, true);
+		if (Hero) NiagaraAt(TEXT("/Game/NiagaraExamples/FX_Player/NS_Player_Teleport_In"), Hero->GetActorLocation() - FVector(0, 0, 85.f), 1.f);
 		return;
 	}
 	if (X->State == EHexState::Rumored) Toast(TEXT("Scout the hexes nearer to you on this route first."));

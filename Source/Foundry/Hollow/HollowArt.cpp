@@ -12,6 +12,10 @@
 #include "GameFramework/Actor.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "ProceduralMeshComponent.h"
+#include "Components/HierarchicalInstancedStaticMeshComponent.h"
+#include "NiagaraComponent.h"
+#include "NiagaraSystem.h"
+#include "Misc/Paths.h"
 
 namespace HollowArt
 {
@@ -255,6 +259,121 @@ USkeletalMeshComponent* KChar(AActor* A, USceneComponent* Parent, const FString&
 	return C;
 }
 
+/* ---------- Fab packs ---------- */
+
+namespace
+{
+	template <typename T> T* LoadPath(const FString& Path)
+	{
+		static TMap<FString, TWeakObjectPtr<UObject>> Cache;
+		static TSet<FString> Missing;
+		if (Missing.Contains(Path)) return nullptr;
+		if (TWeakObjectPtr<UObject>* F = Cache.Find(Path)) if (F->IsValid()) return Cast<T>(F->Get());
+		T* O = LoadObject<T>(nullptr, *(Path + TEXT(".") + FPaths::GetBaseFilename(Path)));
+		if (!O) { Missing.Add(Path); return nullptr; }
+		Cache.Add(Path, O);
+		return O;
+	}
+}
+
+UNiagaraComponent* NiagaraPart(AActor* A, const FString& Path, const FVector& Loc, float Scale, USceneComponent* Parent)
+{
+	if (GNoLights) return nullptr;
+	UNiagaraSystem* Sys = LoadPath<UNiagaraSystem>(Path);
+	if (!Sys) return nullptr;
+	UNiagaraComponent* N = NewObject<UNiagaraComponent>(A);
+	N->SetAsset(Sys);
+	N->SetupAttachment(Parent ? Parent : A->GetRootComponent());
+	N->SetRelativeLocation(Loc);
+	N->SetRelativeScale3D(FVector(Scale));
+	N->RegisterComponent();
+	A->AddInstanceComponent(N);
+	N->Activate(true);
+	return N;
+}
+
+AActor* GroundCover(UWorld* W, const FVector& Center, float Ap, int32 Count, int32 Seed, TFunctionRef<bool(const FVector&)> Reject)
+{
+	static const TCHAR* Meshes[] = {
+		TEXT("/Game/PN_GrassLibrary/Meshes/grassMesh/grass_05_01_mesh"), TEXT("/Game/PN_GrassLibrary/Meshes/grassMesh/grass_06_02_mesh"),
+		TEXT("/Game/PN_GrassLibrary/Meshes/grassMesh/grass_07_01_mesh"), TEXT("/Game/PN_GrassLibrary/Meshes/grassMesh/grass_09_03_mesh"),
+		TEXT("/Game/PN_GrassLibrary/Meshes/grassMesh/grass_11_02_mesh"), TEXT("/Game/PN_GrassLibrary/Meshes/grassMesh/lowGrass_04_02_SM"),
+		TEXT("/Game/PN_GrassLibrary/Meshes/grassMesh/lowGrass_07_01_SM"), TEXT("/Game/PN_GrassLibrary/Meshes/grassMesh/lowGrass_09_02_SM") };
+	TArray<UHierarchicalInstancedStaticMeshComponent*> Comps;
+	AActor* A = nullptr;
+	for (const TCHAR* M : Meshes)
+		if (UStaticMesh* SM = LoadPath<UStaticMesh>(M))
+		{
+			if (!A) A = NewActor(W, Center);
+			UHierarchicalInstancedStaticMeshComponent* H = NewObject<UHierarchicalInstancedStaticMeshComponent>(A);
+			H->SetStaticMesh(SM);
+			H->SetupAttachment(A->GetRootComponent());
+			H->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			H->SetCastShadow(false);
+			H->SetCullDistances(0, 9000);
+			H->RegisterComponent();
+			A->AddInstanceComponent(H);
+			Comps.Add(H);
+		}
+	if (!A) return nullptr;
+	FRandomStream R(Seed);
+	for (int32 i = 0; i < Count; ++i)
+	{
+		const FVector P(R.FRandRange(-Ap, Ap), R.FRandRange(-Ap * 1.15f, Ap * 1.15f), 0);
+		if (FMath::Abs(P.X) * 0.5f + FMath::Abs(P.Y) * 0.866f > Ap * 0.95f || FMath::Abs(P.X) > Ap * 0.95f) continue;
+		if (Reject(Center + P)) continue;
+		const float S = R.FRandRange(1.4f, 2.6f);
+		Comps[R.RandRange(0, Comps.Num() - 1)]->AddInstance(FTransform(FRotator(0, R.FRandRange(0.f, 360.f), 0), P, FVector(S, S, S * R.FRandRange(0.8f, 1.3f))));
+	}
+	return A;
+}
+
+USkeletalMeshComponent* Plant(AActor* A, const FString& Kind, const FVector& Loc, float Scale)
+{
+	static const TMap<FString, FString> Base = {
+		{ TEXT("heather"), TEXT("/Game/Megaplant_Library/Shrub_Heather/Shrub_Heather_01/Shrub_Heather_01_") },
+		{ TEXT("lingon"), TEXT("/Game/Megaplant_Library/Plant_Lingonberry/Plant_LingonBerry01/Plant_Lingonberry_01_") },
+		{ TEXT("anemone"), TEXT("/Game/Megaplant_Library/Plant_Wood_Anemone/Plant_Wood_Anemone_01/Plant_Wood_Anemone_01_") } };
+	const FString* B = Base.Find(Kind);
+	if (!B) return nullptr;
+	static const TCHAR* Variants[] = { TEXT("A"), TEXT("B"), TEXT("C"), TEXT("D"), TEXT("E"), TEXT("F") };
+	USkeletalMesh* SK = LoadPath<USkeletalMesh>(*B + Variants[FMath::RandRange(0, 5)]);
+	if (!SK) return nullptr;
+	USkeletalMeshComponent* C = NewObject<USkeletalMeshComponent>(A);
+	C->SetSkeletalMesh(SK);
+	C->SetupAttachment(A->GetRootComponent());
+	C->SetRelativeLocationAndRotation(Loc, FRotator(0, FMath::FRandRange(0.f, 360.f), 0));
+	C->SetRelativeScale3D(FVector(Scale));
+	C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	C->SetCastShadow(false);
+	C->RegisterComponent();
+	A->AddInstanceComponent(C);
+	return C;
+}
+
+AActor* Plants(UWorld* W, const FVector& L, const FString& Kind, int32 Count, float Spread, int32 Seed)
+{
+	AActor* A = NewActor(W, L);
+	FRandomStream R(Seed);
+	for (int32 i = 0; i < Count; ++i)
+		Plant(A, Kind, FVector(R.FRandRange(-Spread, Spread), R.FRandRange(-Spread, Spread), 0), R.FRandRange(1.6f, 2.6f));
+	return A;
+}
+
+UStaticMeshComponent* LightBeam(AActor* A, const FVector& Top, float Length, float Radius, const FLinearColor& C)
+{
+	if (GNoLights) return nullptr;
+	UStaticMesh* SM = LoadPath<UStaticMesh>(TEXT("/Game/LightShaftGenie/Meshes/SM_LightBeam_Cone"));
+	UMaterialInterface* M = LoadPath<UMaterialInterface>(TEXT("/Game/LightShaftGenie/Materials/LightShaft/M_LightShaft_SS"));
+	if (!SM || !M) return nullptr;
+	const FVector Ext = SM->GetBounds().BoxExtent * 2.f;
+	UMaterialInstanceDynamic* MI = UMaterialInstanceDynamic::Create(M, A);
+	MI->SetVectorParameterValue(TEXT("Color"), C);
+	UStaticMeshComponent* P = MakePart(A, SM, Top, FVector(Radius * 2.f / FMath::Max(1.f, Ext.X), Radius * 2.f / FMath::Max(1.f, Ext.Y), Length / FMath::Max(1.f, Ext.Z)), MI, FRotator::ZeroRotator, false, nullptr);
+	P->SetCastShadow(false);
+	return P;
+}
+
 /* ---------- Scenery ---------- */
 
 AActor* PineTree(UWorld* W, const FVector& L, float S, const FLinearColor& Leaf)
@@ -451,6 +570,7 @@ AActor* House(UWorld* W, const FVector& L, float Yaw, const FLinearColor& Wall, 
 	Part(A, EShape::Cube, FVector(0, 0, Z), FVector(X * 1.12f, R, R), Roof, FRotator(0, 0, 45));
 	if (!KPart(A, TEXT("Town/chimney"), FVector(-X * 0.25f, Y * 0.2f, Z + R * 0.2f), 0.f, S))
 		Part(A, EShape::Cube, FVector(-X * 0.25f, Y * 0.25f, Z + R * 0.45f), FVector(34, 34, 90), Stone * 0.8f);
+	NiagaraPart(A, TEXT("/Game/NiagaraExamples/FX_Smoke/NS_Chimney_Smoke"), FVector(-X * 0.25f + 30.f * S, Y * 0.2f, Z + R * 0.2f + 100.f * S), 0.8f);
 	Light(A, FVector(0, 0, 150), Lamp, 18.f, Cell * 2.4f);
 	Light(A, FVector(X * 0.5f + 60, 0, 230), Lamp, 10.f, 520.f);
 	GlowPart(A, EShape::Sphere, FVector(X * 0.5f + 40, Cell * 0.45f, 240), FVector(22, 22, 22), Lamp);
@@ -614,8 +734,12 @@ AActor* RuinArch(UWorld* W, const FVector& L, float Yaw, bool bFire)
 	{
 		if (!KPart(A, TEXT("Graveyard/fire-basket"), FVector(-60, 0, 0), 0.f, 2.f))
 			Part(A, EShape::Cylinder, FVector(-60, 0, 20), FVector(60, 60, 40), DarkStone);
-		GlowPart(A, EShape::Cone, FVector(-60, 0, 70), FVector(40, 40, 70), FLinearColor(1.f, 0.4f, 0.08f));
-		GlowPart(A, EShape::Cone, FVector(-60, 0, 78), FVector(22, 22, 50), FLinearColor(1.f, 0.8f, 0.3f));
+		if (!NiagaraPart(A, TEXT("/Game/NiagaraExamples/FX_Misc/NS_Fire"), FVector(-60, 0, 36), 0.6f))
+		{
+			GlowPart(A, EShape::Cone, FVector(-60, 0, 70), FVector(40, 40, 70), FLinearColor(1.f, 0.4f, 0.08f));
+			GlowPart(A, EShape::Cone, FVector(-60, 0, 78), FVector(22, 22, 50), FLinearColor(1.f, 0.8f, 0.3f));
+		}
+		NiagaraPart(A, TEXT("/Game/Sparks_Embers/Niagara/NS_Embers02"), FVector(-60, 0, 90), 0.5f);
 		Light(A, FVector(-60, 0, 110), FLinearColor(1.f, 0.45f, 0.15f), 40.f, 900.f, true);
 	}
 	Collider(A, FVector(0, 120, 160), FVector(70, 70, 320));
@@ -747,8 +871,12 @@ AActor* Campfire(UWorld* W, const FVector& L)
 	if (!KPart(A, TEXT("Nature/campfire_logs"), FVector::ZeroVector, 0.f, 3.f))
 		for (int32 i = 0; i < 3; ++i)
 			Part(A, EShape::Cylinder, FVector(0, 0, 8), FVector(14, 14, 80), DarkWood, FRotator(90, i * 60.f, 0));
-	GlowPart(A, EShape::Cone, FVector(0, 0, 35), FVector(40, 40, 60), FLinearColor(1.f, 0.38f, 0.08f));
-	GlowPart(A, EShape::Cone, FVector(0, 0, 42), FVector(22, 22, 50), FLinearColor(1.f, 0.78f, 0.3f));
+	if (!NiagaraPart(A, TEXT("/Game/NiagaraExamples/FX_Misc/NS_Fire"), FVector(0, 0, 12), 0.8f))
+	{
+		GlowPart(A, EShape::Cone, FVector(0, 0, 35), FVector(40, 40, 60), FLinearColor(1.f, 0.38f, 0.08f));
+		GlowPart(A, EShape::Cone, FVector(0, 0, 42), FVector(22, 22, 50), FLinearColor(1.f, 0.78f, 0.3f));
+	}
+	NiagaraPart(A, TEXT("/Game/Sparks_Embers/Niagara/NS_Embers01"), FVector(0, 0, 60), 0.6f);
 	for (int32 i = 0; i < 8; ++i)
 		Part(A, EShape::Sphere, FVector(FMath::Cos(i * PI / 4) * 50, FMath::Sin(i * PI / 4) * 50, 6), FVector(22, 22, 16), Stone);
 	Light(A, FVector(0, 0, 80), FLinearColor(1.f, 0.45f, 0.15f), 45.f, 1000.f, true);
@@ -830,6 +958,7 @@ AActor* EldritchFountain(UWorld* W, const FVector& L)
 		Rad *= 0.86f;
 	}
 	GlowPart(A, EShape::Sphere, FVector(0, 0, 470), FVector(90, 90, 90), Eldritch);
+	LightBeam(A, FVector(0, 0, 1400), 1400.f, 260.f, Eldritch);
 	Light(A, FVector(0, 0, 470), Eldritch, 40.f, 1400.f, true);
 	Light(A, FVector(0, 0, 80), Eldritch, 10.f, 700.f);
 	return A;
@@ -964,6 +1093,7 @@ AActor* Marker(UWorld* W, const FVector& L, const FLinearColor& C)
 	AActor* A = NewActor(W, L);
 	GlowPart(A, EShape::Cone, FVector(0, 0, 260), FVector(40, 40, 80), C, FRotator(180, 0, 0));
 	GlowPart(A, EShape::Cylinder, FVector(0, 0, 2), FVector(180, 180, 2), C * 0.35f);
+	NiagaraPart(A, TEXT("/Game/NiagaraExamples/FX_Markers/NS_Marker_Location"), FVector(0, 0, 4), 1.5f);
 	Light(A, FVector(0, 0, 200), C, 20.f, 650.f);
 	return A;
 }

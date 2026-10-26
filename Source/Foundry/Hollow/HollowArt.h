@@ -15,6 +15,7 @@ class UPointLightComponent;
 class UProceduralMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
+class UNiagaraComponent;
 
 namespace HollowArt
 {
@@ -42,6 +43,13 @@ namespace HollowArt
 	UStaticMeshComponent* KPart(AActor* A, const FString& Path, const FVector& Loc, float Yaw, float Scale,
 		USceneComponent* Parent = nullptr, const FVector& NonUniform = FVector::OneVector);
 	USkeletalMeshComponent* KChar(AActor* A, USceneComponent* Parent, const FString& Name, const FVector& Loc, float Yaw, float Height);
+
+	// Fab packs (local only, loaded by path with graceful fallback)
+	UNiagaraComponent* NiagaraPart(AActor* A, const FString& Path, const FVector& Loc, float Scale = 1.f, USceneComponent* Parent = nullptr);
+	AActor* GroundCover(UWorld* W, const FVector& Center, float Apothem, int32 Count, int32 Seed, TFunctionRef<bool(const FVector&)> Reject);
+	USkeletalMeshComponent* Plant(AActor* A, const FString& Kind, const FVector& Loc, float Scale);
+	AActor* Plants(UWorld* W, const FVector& L, const FString& Kind, int32 Count, float Spread, int32 Seed);
+	UStaticMeshComponent* LightBeam(AActor* A, const FVector& Top, float Length, float Radius, const FLinearColor& C);
 
 	// Scenery
 	AActor* PineTree(UWorld* W, const FVector& L, float Scale, const FLinearColor& Leaf);
