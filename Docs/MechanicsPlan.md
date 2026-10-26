@@ -109,7 +109,19 @@ The goal is to move from FF-style turns toward Foundry's pf2e encounter rules wh
 - **Icons:** pf2e/Foundry icons are not free to redistribute. Use them only through local paths, or make our own.
 - **Effects:** JB2A is NC-licensed, so only the idea. Spell VFX come from damage-type families using our own Niagara.
 
-## Questions for the user (answer when you're back)
+## Decisions (user, 2026-10-25)
+
+1. **Combat on a fine hex grid.** One hex is 5 ft. You move in and out freely (Stride / Step), which replaces the front-line / back-line layout.
+2. **One hero for now.** Later the hero recruits companions on the road.
+3. **Level cap 20, slow grind.** XP stays slow, so it's a long build-up.
+4. **Uncommon and rare are in, with pf2e-style availability:**
+   - **Settlements have a level,** for example Brindlemark is a level 2–3 village. Shops stock common items up to the settlement level. They rarely carry anything above it, and only from big towns or cities.
+   - **Uncommon** items show up in a shop's stock only now and then, roughly 10–15% per restock, and more often in larger settlements. They also come from quest rewards, NPCs who grant access, and loot.
+   - **Rare** items almost never appear in shops (about 2%, cities only). They come mainly from treasure tables, bosses and secret caves.
+   - **Loot** follows pf2e's Treasure by Level budget: permanent items at level and level+1, consumables, currency. Rarity is weighted so that common items dominate.
+   - **Data:** item level and rarity already come from the library. A settlement level and size goes on each town hex.
+
+## Questions for the user (answered above)
 
 1. Should combat run on a grid: hexes inside the arena, with movement in 5-ft steps? Or stay a front-line/back-line formation, with movement as an abstract "close / far" range?
 2. Is party play wanted (several PCs, like your 6 level-4 characters), or one hero plus companions?
