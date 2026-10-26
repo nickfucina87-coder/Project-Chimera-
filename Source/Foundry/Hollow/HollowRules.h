@@ -33,6 +33,9 @@ namespace HollowRules
 	FString SkillName(const FString& Skill);
 	const TArray<FString>& SkillList();
 	int32 XpForLevel(int32 Level);
+	// Rule elements from the library (feats, class features, subclass picks) folded into RuleMods.
+	void Recompute(FPC& P);
+	int32 RuleMod(const FPC& P, std::initializer_list<const TCHAR*> Selectors);
 
 	struct FAncestry { FString Id, Name, Boost, Skill, Note; int32 Hp, Speed, PerBonus; };
 	struct FKit { FString Id, Name, Note; int32 Hp; };

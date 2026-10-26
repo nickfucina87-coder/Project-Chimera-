@@ -270,7 +270,8 @@ void AHollowGameMode::OnFootstep(const FVector& At)
 
 void AHollowGameMode::Zoom(float Delta)
 {
-	if (Hero) Hero->ZoomBy(Delta);
+	if (Mode == EHollowMode::Combat) ZoomArena(Delta);
+	else if (Hero) Hero->ZoomBy(Delta);
 }
 
 /* ---------- Local LLM brain (Ollama) ---------- */

@@ -54,6 +54,15 @@ void AHollowPlayerController::PlayerTick(float DeltaTime)
 		if (GetHitResultUnderCursor(ECC_Visibility, false, Hit))
 			GM->ClickWorld(Hit);
 	}
+	// free camera: right-drag, or Shift + left-drag, turns the view smoothly (exploring or in battle)
+	const bool bTurn = IsInputKeyDown(EKeys::RightMouseButton) || (IsInputKeyDown(EKeys::LeftShift) && IsInputKeyDown(EKeys::LeftMouseButton));
+	if (bTurn)
+	{
+		float Dx = 0.f, Dy = 0.f;
+		GetInputMouseDelta(Dx, Dy);
+		if (GM->Mode == EHollowMode::Combat) GM->OrbitArena(Dx * 1.6f);
+		else if (AHollowHero* H = Cast<AHollowHero>(GetPawn())) H->RotateView(Dx * 1.6f);
+	}
 	else if (IsInputKeyDown(EKeys::LeftMouseButton) && bFree)
 	{
 		// click and hold: keep walking toward the cursor until you let go
@@ -64,8 +73,8 @@ void AHollowPlayerController::PlayerTick(float DeltaTime)
 	}
 	if (WasInputKeyJustReleased(EKeys::LeftMouseButton) && HoldTime > 0.18f)
 		if (AHollowHero* H = Cast<AHollowHero>(GetPawn())) H->StopMove();
-	if (WasInputKeyJustPressed(EKeys::Q)) if (AHollowHero* H = Cast<AHollowHero>(GetPawn())) H->RotateView(-60.f);
-	if (WasInputKeyJustPressed(EKeys::R)) if (AHollowHero* H = Cast<AHollowHero>(GetPawn())) H->RotateView(60.f);
+	if (WasInputKeyJustPressed(EKeys::Q)) { if (GM->Mode == EHollowMode::Combat) GM->OrbitArena(-60.f); else if (AHollowHero* H = Cast<AHollowHero>(GetPawn())) H->RotateView(-60.f); }
+	if (WasInputKeyJustPressed(EKeys::R)) { if (GM->Mode == EHollowMode::Combat) GM->OrbitArena(60.f); else if (AHollowHero* H = Cast<AHollowHero>(GetPawn())) H->RotateView(60.f); }
 	if (WasInputKeyJustPressed(EKeys::E) || WasInputKeyJustPressed(EKeys::SpaceBar)) GM->Interact();
 	if (WasInputKeyJustPressed(EKeys::M)) GM->ToggleMap();
 	if (WasInputKeyJustPressed(EKeys::Tab)) GM->CycleTarget();

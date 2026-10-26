@@ -20,6 +20,10 @@ namespace
 		TArray<FLibJournal> Journals;
 		TArray<FLibScene> Scenes;
 		TArray<FLibNpc> Npcs;
+		TArray<FLibChoice> Choices;
+		TArray<FLibCreature> Bestiary;
+		TArray<FLibHazard> Hazards;
+		TMap<FString, int32> CfIx, CreatureIx;
 		TMap<FString, FString> RenEquip, RenFeat, RenSpell;          // normalised Pathbuilder name -> Foundry name
 		TMap<FString, int32> ClassIx, AncIx, FeatIx, SpellIx, ItemIx; // normalised name -> index
 	};
@@ -65,7 +69,22 @@ namespace
 	void Base(FLibEntry& E, const TSharedPtr<FJsonObject>& O)
 	{
 		E.Name = Str(O, TEXT("name")); E.Text = Str(O, TEXT("text")); E.Rarity = Str(O, TEXT("rarity"));
-		E.Level = Int(O, TEXT("level")); E.Traits = Strs(O, TEXT("traits"));
+		E.Level = Int(O, TEXT("level")); E.Traits = Strs(O, TEXT("traits")); E.Tags = Strs(O, TEXT("tags"));
+		E.Parent = Str(O, TEXT("ancestry")); E.Skills = Strs(O, TEXT("skills"));
+		auto Slots = [&](const TCHAR* K, TArray<TArray<FString>>& Into)
+		{
+			const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
+			if (O && O->TryGetArrayField(K, A))
+				for (const TSharedPtr<FJsonValue>& V : *A)
+				{
+					TArray<FString>& Slot = Into.AddDefaulted_GetRef();
+					const TArray<TSharedPtr<FJsonValue>>* In = nullptr;
+					if (V->TryGetArray(In)) for (const TSharedPtr<FJsonValue>& X : *In) Slot.Add(X->AsString());
+				}
+		};
+		Slots(TEXT("boosts"), E.Boosts); Slots(TEXT("flaws"), E.Flaws);
+		const TArray<TSharedPtr<FJsonValue>>* Rs = nullptr;
+		if (O && O->TryGetArrayField(TEXT("rules"), Rs)) for (const TSharedPtr<FJsonValue>& V : *Rs) if (V->AsObject()) E.Rules.Add(V->AsObject());
 	}
 	template <typename T> void Index(const TArray<T>& A, TMap<FString, int32>& Ix)
 	{
@@ -165,7 +184,7 @@ bool Load()
 		I.Type = Str(O, TEXT("type")); I.Usage = Str(O, TEXT("usage")); I.Price = Num(O, TEXT("price")); I.Bulk = Num(O, TEXT("bulk"));
 		I.Die = Str(O, TEXT("die")); I.Dice = FMath::Max(1, Int(O, TEXT("dice"))); I.DmgType = Str(O, TEXT("dmgType"));
 		I.Group = Str(O, TEXT("group")); I.Category = Str(O, TEXT("category"));
-		I.Ac = Int(O, TEXT("ac")); I.Str = Int(O, TEXT("str")); I.CheckPenalty = Int(O, TEXT("checkPenalty"));
+		I.Ac = Int(O, TEXT("ac")); I.Str = Int(O, TEXT("str")); I.CheckPenalty = Int(O, TEXT("checkPenalty")); I.Range = Int(O, TEXT("range"));
 		I.DexCap = O->HasField(TEXT("dexCap")) ? Int(O, TEXT("dexCap")) : 99;
 	}
 	for (const auto& V : Arr(R, TEXT("journals")))
@@ -206,11 +225,53 @@ bool Load()
 			S.Lights.Add({ FVector2D(Num(Lo, TEXT("x")), Num(Lo, TEXT("y"))), Num(Lo, TEXT("bright")), Num(Lo, TEXT("dim")), Str(Lo, TEXT("color")) });
 		}
 	}
+	for (const auto& V : Arr(R, TEXT("choices")))
+	{
+		const TSharedPtr<FJsonObject> O = V->AsObject();
+		FLibChoice& C = X.Choices.AddDefaulted_GetRef();
+		C.Feature = Str(O, TEXT("feature")); C.Class = Str(O, TEXT("class")); C.Flag = Str(O, TEXT("flag")); C.Level = Int(O, TEXT("level"));
+		for (const auto& Op : Arr(O, TEXT("options"))) Base(C.Options.AddDefaulted_GetRef(), Op->AsObject());
+	}
+	for (const auto& V : Arr(R, TEXT("bestiary")))
+	{
+		const TSharedPtr<FJsonObject> O = V->AsObject();
+		FLibCreature& Cr = X.Bestiary.AddDefaulted_GetRef();
+		Base(Cr, O);
+		Cr.Source = Str(O, TEXT("source")); Cr.Size = Str(O, TEXT("size"));
+		Cr.Hp = Int(O, TEXT("hp")); Cr.Ac = Int(O, TEXT("ac")); Cr.Per = Int(O, TEXT("perception")); Cr.Speed = Int(O, TEXT("speed"));
+		const TSharedPtr<FJsonObject> Sv = Obj(O, TEXT("saves"));
+		Cr.Fort = Int(Sv, TEXT("fort")); Cr.Ref = Int(Sv, TEXT("ref")); Cr.Will = Int(Sv, TEXT("will"));
+		Cr.Senses = Strs(O, TEXT("senses")); Cr.Immunities = Strs(O, TEXT("immunities")); Cr.Weaknesses = Strs(O, TEXT("weaknesses"));
+		Cr.Resistances = Strs(O, TEXT("resistances")); Cr.Spells = Strs(O, TEXT("spells"));
+		for (const auto& St : Arr(O, TEXT("strikes")))
+		{
+			const TSharedPtr<FJsonObject> So = St->AsObject();
+			FLibStrike& S = Cr.Strikes.AddDefaulted_GetRef();
+			S.Name = Str(So, TEXT("name")); S.Bonus = Int(So, TEXT("bonus")); S.bRanged = Bool(So, TEXT("ranged")); S.Traits = Strs(So, TEXT("traits"));
+			for (const auto& D : Arr(So, TEXT("damage"))) S.Damage.Add({ Str(D->AsObject(), TEXT("formula")), Str(D->AsObject(), TEXT("type")) });
+		}
+		for (const auto& Ab : Arr(O, TEXT("abilities")))
+		{
+			const TSharedPtr<FJsonObject> Ao = Ab->AsObject();
+			FLibFeat& F = Cr.Abilities.AddDefaulted_GetRef();
+			Base(F, Ao);
+			F.Action = Str(Ao, TEXT("action")); F.Actions = Int(Ao, TEXT("actions"));
+		}
+	}
+	for (const auto& V : Arr(R, TEXT("hazards")))
+	{
+		const TSharedPtr<FJsonObject> O = V->AsObject();
+		FLibHazard& Hz = X.Hazards.AddDefaulted_GetRef();
+		Base(Hz, O);
+		Hz.Stealth = Int(O, TEXT("stealth")); Hz.Ac = Int(O, TEXT("ac")); Hz.Hp = Int(O, TEXT("hp"));
+		Hz.Disable = Str(O, TEXT("disable")); Hz.Reset = Str(O, TEXT("reset"));
+	}
 	if (const TSharedPtr<FJsonObject> Rn = Obj(R, TEXT("renames")))
 	{
 		auto Ren = [&](const TCHAR* K, TMap<FString, FString>& M) { for (const auto& E : Arr(Rn, K)) M.Add(Key(Str(E->AsObject(), TEXT("pb"))), Str(E->AsObject(), TEXT("foundry"))); };
 		Ren(TEXT("equipment"), X.RenEquip); Ren(TEXT("feats"), X.RenFeat); Ren(TEXT("spells"), X.RenSpell);
 	}
+	Index(X.ClassFeatures, X.CfIx); Index(X.Bestiary, X.CreatureIx);
 	Index(X.Classes, X.ClassIx); Index(X.Ancestries, X.AncIx); Index(X.Feats, X.FeatIx); Index(X.Spells, X.SpellIx); Index(X.Items, X.ItemIx);
 	X.bOk = true;
 	UE_LOG(LogTemp, Display, TEXT("Hollow library: %d classes, %d ancestries, %d feats, %d spells, %d items, %d journals, %d scenes"),
@@ -232,6 +293,26 @@ const TArray<FLibEntry>& Deities() { Load(); return L().Deities; }
 const TArray<FLibJournal>& Journals() { Load(); return L().Journals; }
 const TArray<FLibScene>& Scenes() { Load(); return L().Scenes; }
 const TArray<FLibNpc>& Npcs() { Load(); return L().Npcs; }
+const TArray<FLibChoice>& Choices() { Load(); return L().Choices; }
+const TArray<FLibCreature>& Bestiary() { Load(); return L().Bestiary; }
+const TArray<FLibHazard>& Hazards() { Load(); return L().Hazards; }
+const FLibEntry* ClassFeature(const FString& N) { static const TMap<FString, FString> None; return Find(L().ClassFeatures, L().CfIx, None, N); }
+const FLibCreature* Creature(const FString& N) { static const TMap<FString, FString> None; return Find(L().Bestiary, L().CreatureIx, None, N); }
+
+TArray<const FLibChoice*> ChoicesFor(const FString& ClassName, int32 Level)
+{
+	TArray<const FLibChoice*> Out;
+	const FString C = ClassName.ToLower();
+	for (const FLibChoice& Ch : Choices()) if (Ch.Class == C && Ch.Level == Level) Out.Add(&Ch);
+	return Out;
+}
+
+const TArray<const FLibEntry*> HeritagesOf(const FString& Ancestry)
+{
+	TArray<const FLibEntry*> Out;
+	for (const FLibEntry& H : Heritages()) if (H.Parent.IsEmpty() || H.Parent.Equals(Ancestry, ESearchCase::IgnoreCase)) Out.Add(&H);
+	return Out;
+}
 
 const FLibClass* Class(const FString& N) { static const TMap<FString, FString> None; return Find(L().Classes, L().ClassIx, None, N); }
 const FLibAncestry* Ancestry(const FString& N) { static const TMap<FString, FString> None; return Find(L().Ancestries, L().AncIx, None, N); }

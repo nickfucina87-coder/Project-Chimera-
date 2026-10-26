@@ -354,6 +354,7 @@ void AHollowGameMode::ConfirmLevelUp()
 	// several levels at once (a big XP award, or an import below its XP): plan the next one
 	int32 Planned = V.Level;
 	if (Planned < PC.Level) LevelUp = PlanLevel(PC, Planned + 1, CasterTradition());
+	Recompute(PC);
 	RefreshAura();
 	MarkUI();
 }
@@ -532,6 +533,12 @@ void AHollowGameMode::FeatureLoot(const FString& Kind, const FVector& At, FStrin
 			Give(It.Key, It.Value);
 			Parts.Add(It.Value > 1 ? FString::Printf(TEXT("%d %s"), It.Value, *D->Name) : D->Name);
 		}
+	// now and then something from the wider world: a library item at this hex's level, rarity-weighted
+	if (Kind != TEXT("fire") && FMath::FRand() < 0.35f)
+	{
+		const FString Lib = RollLoot(HexLevel(Pos), FMath::Rand());
+		if (const FItemDef* D = HollowItems::Find(Lib)) { Give(Lib, 1); Parts.Add(D->Name + (D->Rarity >= ERarity::Uncommon ? FString::Printf(TEXT(" (%s)"), *HollowItems::RarityName(D->Rarity).ToLower()) : FString())); }
+	}
 	if (Parts.Num()) Msg += TEXT(" You find ") + FString::Join(Parts, TEXT(", ")) + TEXT(".");
 	PlaySfx(TEXT("coins"));
 	Burst(At + FVector(0, 0, 60), TEXT("star_04"), FLinearColor(1.f, 0.75f, 0.3f), 16, 260.f, 1.f, 40.f, 200.f, 400.f);
@@ -957,6 +964,7 @@ void AHollowGameMode::ApplyPathbuilder(const FString& Json)
 		else if (Ranked++ < 12) P.Deck.Add(Card);
 	}
 
+	Recompute(P);
 	PC = P;
 	CreateName = P.Name; CreateAnc = AncId; CreateKit = Kit;
 	bImported = true;
@@ -1063,4 +1071,51 @@ void AHollowGameMode::TickVisibility(float Dt)
 	}
 	else if (!bNoticed) NoticeClock = FMath::Max(0.f, NoticeClock - Step * 0.5f);
 	if (bChanged) MarkUI();
+}
+
+
+/* ---------- Availability: shops and treasure ---------- */
+
+FString AHollowGameMode::RollLoot(int32 Level, int32 Seed) const
+{
+	if (!HollowLib::Load()) return FString();
+	FRandomStream Rng(Seed);
+	// pf2e treasure leans common; uncommon finds are a treat, rare ones a story
+	const float Roll = Rng.FRand();
+	const FString Want = Roll < 0.02f ? TEXT("rare") : Roll < 0.15f ? TEXT("uncommon") : TEXT("common");
+	TArray<const FLibItem*> Pool;
+	for (const FLibItem& I : HollowLib::Items())
+		if (I.Rarity == Want && I.Level <= Level + 1 && I.Level >= FMath::Max(0, Level - 3) && I.Price > 0.f && I.Type != TEXT("treasure") && I.Type != TEXT("kit") && I.Type != TEXT("book"))
+			Pool.Add(&I);
+	if (!Pool.Num()) return FString();
+	return HollowItems::FromLibrary(Pool[Rng.RandRange(0, Pool.Num() - 1)]->Name);
+}
+
+TArray<FString> AHollowGameMode::ShopStock(const FNpcDef& N) const
+{
+	TArray<FString> Out = N.Stock;
+	if (!HollowLib::Load() || N.Service.IsEmpty() || N.Service == TEXT("inn")) return Out;
+	// the stock turns over every day: seeded by the day and the trader
+	FRandomStream Rng(Day * 7919 + GetTypeHash(N.Id));
+	const int32 Lv = SettlementLevel();
+	const bool bCity = Lv >= 6;
+	const bool bTemple = N.Service == TEXT("temple");
+	TArray<const FLibItem*> Pool;
+	for (const FLibItem& I : HollowLib::Items())
+	{
+		if (I.Level > Lv || I.Price <= 0.f || I.Price > 400.f) continue;
+		if (bTemple ? !(I.Type == TEXT("consumable") && (I.Traits.Contains(TEXT("healing")) || I.Traits.Contains(TEXT("holy")) || I.Traits.Contains(TEXT("vitality"))))
+			: !(I.Type == TEXT("consumable") || I.Type == TEXT("weapon") || I.Type == TEXT("armor") || I.Type == TEXT("shield") || I.Type == TEXT("equipment"))) continue;
+		if (I.Rarity == TEXT("common")) Pool.Add(&I);
+		else if (I.Rarity == TEXT("uncommon") && Rng.FRand() < (bCity ? 0.15f : 0.012f)) Pool.Add(&I);   // ~10-15% of restocks show one
+		else if (I.Rarity == TEXT("rare") && bCity && Rng.FRand() < 0.002f) Pool.Add(&I);
+	}
+	for (int32 i = 0; i < (bTemple ? 4 : 10) && Pool.Num(); ++i)
+	{
+		const int32 K = Rng.RandRange(0, Pool.Num() - 1);
+		const FString Id = HollowItems::FromLibrary(Pool[K]->Name);
+		if (!Id.IsEmpty()) Out.AddUnique(Id);
+		Pool.RemoveAtSwap(K);
+	}
+	return Out;
 }

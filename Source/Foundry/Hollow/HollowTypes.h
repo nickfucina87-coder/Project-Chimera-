@@ -187,6 +187,9 @@ struct FPC
 	FString Heritage, Background, Deity, Tradition;
 	TArray<TPair<int32, FString>> Feats;   // level taken, library feat name
 	TArray<FString> Spells;                // library spell names known / prepared
+	TMap<FString, int32> RuleMods;         // summed rule-element modifiers by Foundry selector (HollowRules::Recompute)
+	TArray<FString> RuleNotes;
+	int32 RuleHpApplied = 0, RuleSpeedApplied = 0;
 	int32 Count(const FString& Id) const { return Inv.Count(Id); }
 	int32 Speed = 25;
 	TArray<FString> Deck;

@@ -77,6 +77,16 @@ struct FTalkChoice
 	bool bLocked = false, bSeen = false;
 };
 
+// The full character builder's working state (HollowBuilder.cpp).
+struct FBuildDraft
+{
+	int32 Step = 0;   // 0 ancestry, 1 heritage, 2 background, 3 class, 4 class choices, 5 boosts, 6 skills, 7 feats, 8 spells, 9 gear, 10 review
+	FString Name = TEXT("Aldric Vane"), Ancestry, Heritage, Background, Class, KeyAbility;
+	TMap<FString, FString> Picks;   // class feature -> chosen option (hybrid study, bloodline, patron...)
+	TArray<FString> AncBoosts, BgBoosts, FreeBoosts, Skills, Cantrips, Spells;
+	FString AncFeat, ClassFeat, Weapon, Armor, Search;
+};
+
 struct FTradeView
 {
 	FString NpcId;
@@ -121,6 +131,8 @@ struct FFighter
 	int32 IntentStep = 0;
 	TWeakObjectPtr<AActor> Puppet;
 	FVector Home = FVector::ZeroVector;
+	FIntPoint Cell = FIntPoint::ZeroValue;   // battle-grid hex (5 ft)
+	int32 Reach = 1;
 	float Delay() const { return 1000.f / FMath::Max(5, Speed); }
 };
 
@@ -142,6 +154,9 @@ struct FCombatState
 	FIntPoint Hex = FIntPoint::ZeroValue;
 	bool bFromEvent = false;
 	int32 Round = 1;
+	TSet<FIntPoint> Blocked;              // boulders on the battle grid
+	bool bMoveMode = false, bStepMode = false;
+	TArray<FIntPoint> Reachable;
 };
 
 struct FRewardView
@@ -243,6 +258,11 @@ public:
 	void Buy(const FString& ItemId);
 	void Sell(const FString& ItemId);
 	int32 SellPrice(const FString& ItemId) const;
+	// pf2e availability: a settlement's level caps what its shops carry; uncommon turns up now and then, rare almost never
+	int32 SettlementLevel() const { return 2; }   // Brindlemark is a level 2 village
+	TArray<FString> ShopStock(const FNpcDef& N) const;
+	FString RollLoot(int32 Level, int32 Seed) const;   // a rules-library item for treasure, weighted by rarity
+	int32 HexLevel(const FIntPoint& H) const { return FMath::Clamp((FMath::Abs(H.X) + FMath::Abs(H.Y) + FMath::Abs(H.X + H.Y)) / 2, 1, 20); }
 
 	/* level up */
 	void PickBoost(const FString& Abil);
@@ -272,6 +292,18 @@ public:
 	void ImportPathbuilder(const FString& BuildId);
 	void ApplyPathbuilder(const FString& Json);
 	bool bImported = false;
+	bool bBuilder = false;
+	FBuildDraft Draft;
+	void OpenBuilder();
+	void CloseBuilder() { bBuilder = false; MarkUI(); }
+	void BuilderStep(int32 Step) { Draft.Step = FMath::Clamp(Step, 0, 10); Draft.Search.Reset(); MarkUI(); }
+	void BuilderPick(const FString& Field, const FString& Value);
+	void BuilderFinish();
+	TArray<FString> BuilderPending() const;
+	FPC BuilderPC() const;
+	FString DraftTradition() const;
+	int32 DraftSkillPicks() const;
+	int32 DraftAbil(const FString& A) const;
 	TSet<FString> SpentCards;   // ranked spell cards cast since your last rest
 	void Rest() { SpentCards.Reset(); }
 	void CastLibSpell(const FCardDef& Card, int32 Target);
@@ -314,6 +346,21 @@ public:
 	int32 HeroAC() const;
 	void PickReward(int32 Index);
 	void CombatContinue() { if (Combat.IsSet() && Combat->bOver) FinishCombat(); }
+	// battle grid (HollowGrid.cpp)
+	void CombatMove(bool bStep);
+	void ClickCell(const FIntPoint& H);
+	FVector CellWorld(const FIntPoint& H) const;
+	static int32 CellDist(const FIntPoint& A, const FIntPoint& B);
+	bool CellFree(const FIntPoint& H, int32 Ignore) const;
+	TArray<FIntPoint> PathTo(int32 Who, const FIntPoint& Goal, int32 MaxSteps) const;
+	TArray<FIntPoint> ReachCells(int32 Who, int32 Steps) const;
+	bool InReach(int32 A, int32 B, int32 Reach) const;
+	bool Flanked(int32 Target) const;
+	int32 CoverBetween(int32 A, int32 B) const;
+	bool CanReach(int32 Target, int32 RangeFeet);
+	int32 HeroWeaponRange() const;
+	void OrbitArena(float Deg);
+	void ZoomArena(float Delta);
 
 	void CloseNote() { Note.Reset(); MarkUI(); }
 	void Zoom(float Delta);
@@ -409,6 +456,14 @@ private:
 	void Shake(int32 Idx);
 	void FloatText(int32 Idx, const FString& Text, const FColor& Col);
 	void Beat(float Delay, TFunction<void()> Fn);
+	void BuildBattleGrid();
+	void RefreshGridHighlight();
+	void MoveFighter(int32 Who, const TArray<FIntPoint>& Path);
+	void TickArenaCam(float Dt);
+	void FoeClose(int32 Idx);
+	TMap<TWeakObjectPtr<UPrimitiveComponent>, FIntPoint> BattleTiles;
+	UPROPERTY() TArray<TObjectPtr<AActor>> GridMarks;
+	float ArenaYaw = 90.f, ArenaYawTarget = 90.f, ArenaDist = 2200.f, ArenaDistNow = 2200.f;
 
 	/* runtime */
 	TSharedPtr<SHollowUI> UI;

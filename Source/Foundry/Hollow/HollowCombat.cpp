@@ -45,7 +45,7 @@ int32 AHollowGameMode::HeroAC() const
 	if (Combat.IsSet())
 	{
 		const FFighter& H = Combat->F[0];
-		Ac += H.GuardAc - H.Frightened - (H.OffGuardTurns > 0 ? 2 : 0);
+		Ac += H.GuardAc - H.Frightened - (H.OffGuardTurns > 0 || Flanked(0) ? 2 : 0);
 	}
 	return Ac;
 }
@@ -61,6 +61,7 @@ void AHollowGameMode::SetTarget(int32 Idx)
 {
 	if (!Combat.IsSet() || !Combat->F.IsValidIndex(Idx) || Idx == 0 || Combat->F[Idx].bDead) return;
 	Combat->Target = Idx;
+	RefreshGridHighlight();
 	MarkUI();
 }
 
@@ -190,7 +191,8 @@ void AHollowGameMode::BuildArena()
 	for (int32 i = 0; i < Combat->F.Num(); ++i)
 	{
 		FFighter& F = Combat->F[i];
-		const FVector Home = F.bHero ? O + FVector(-420, 0, 0) : O + FVector(420, (i - 1 - (NumFoes - 1) * 0.5f) * 320.f, 0);
+		F.Cell = F.bHero ? FIntPoint(-1, 3) : FIntPoint((i - 1) * 2 - (NumFoes - 1) + 1, -3);
+		const FVector Home = CellWorld(F.Cell);
 		AActor* A = HollowArt::NewActor(W, Home, F.bHero ? 0.f : 180.f);
 		HollowArt::Part(A, EShape::Cylinder, FVector(0, 0, 100), FVector(150, 150, 200), FLinearColor::Black, FRotator::ZeroRotator, true)->SetVisibility(false);
 		HollowArt::Part(A, EShape::Cylinder, FVector(0, 0, 2), FVector(150, 150, 4), FLinearColor(0.08f, 0.08f, 0.1f));
@@ -204,6 +206,8 @@ void AHollowGameMode::BuildArena()
 		F.Home = Home;
 		ArenaActors.Add(A);
 	}
+	BuildBattleGrid();
+	ArenaYaw = ArenaYawTarget = 90.f;
 }
 
 /* ---------- Turn flow ---------- */
@@ -310,7 +314,7 @@ int32 AHollowGameMode::HeroStrike(int32 T, int32 Bonus, int32 ExtraDice, int32 M
 	const int32 Penalty = FixedPenalty != 999 ? FixedPenalty : (C.Attacks == 0 ? 0 : C.Attacks == 1 ? -5 : -10);
 	const int32 Nat = RollD20();
 	const int32 Mod = AtkMod(PC) + (C.BlessTurns > 0 ? 1 : 0) - C.F[0].Frightened + Penalty + Bonus;
-	const int32 Dc = Foe.Ac - Foe.Frightened - (Foe.OffGuardTurns > 0 ? 2 : 0);
+	const int32 Dc = Foe.Ac - Foe.Frightened - (Foe.OffGuardTurns > 0 || Flanked(T) ? 2 : 0) + CoverBetween(0, T);
 	const int32 Deg = Degree(Nat + Mod, Dc, Nat);
 	C.Attacks += MapWeight;
 	Lunge(0, T);
@@ -411,7 +415,7 @@ void AHollowGameMode::HealHero(int32 Amount, const FString& Why)
 
 void AHollowGameMode::CombatStrike()
 {
-	if (!Spend(1)) return;
+	if (!IsHeroTurn() || !CanReach(Combat->Target, HeroWeaponRange()) || !Spend(1)) return;
 	HeroStrike(Combat->Target, 0, 0, 1);
 	if (Combat.IsSet() && !Combat->bOver && Combat->Actions == 0) CombatEndTurn();
 	MarkUI();
@@ -491,7 +495,15 @@ void AHollowGameMode::PlayCard(int32 HandIndex)
 	const FCardDef* Card = HollowData::Cards().Find(Id);
 	if (!Card) return;
 	if (!Combat->F.IsValidIndex(Combat->Target) || Combat->Target == 0 || Combat->F[Combat->Target].bDead) Combat->Target = FirstLivingFoe();
-	if (Combat->Target == INDEX_NONE || !Spend(Card->Cost)) return;
+	if (Combat->Target == INDEX_NONE) return;
+	if (Card->bNeedsTarget)
+	{
+		int32 RangeFt = Card->Kind == TEXT("Attack") ? HeroWeaponRange() : 30;
+		if (Card->Fx == ECardFx::LibSpell)
+			if (const FLibSpell* Sp = HollowLib::Spell(Card->Spell)) RangeFt = Sp->Range.Contains(TEXT("touch")) ? 5 : FMath::Max(5, FCString::Atoi(*Sp->Range));
+		if (!CanReach(Combat->Target, RangeFt)) return;
+	}
+	if (!Spend(Card->Cost)) return;
 	FCombatState& C = Combat.GetValue();
 	C.Hand.RemoveAt(HandIndex);
 	if (C.HandSerial.IsValidIndex(HandIndex)) C.HandSerial.RemoveAt(HandIndex);
@@ -664,6 +676,7 @@ void AHollowGameMode::StartFoeTurn(int32 Idx)
 	else if (Act == TEXT("drain")) Steps = { TEXT("drain") };
 	else if (Act == TEXT("defend")) Steps = { TEXT("defend"), TEXT("strike") };
 	else Steps = { TEXT("strike"), TEXT("strike") };
+	if (!InReach(Idx, 0, F.Reach)) { Steps.Insert(TEXT("close"), 0); if (Steps.Num() > 2) Steps.SetNum(2); }
 	for (int32 s = 0; s < Steps.Num(); ++s)
 	{
 		const FString Step = Steps[s];
@@ -695,6 +708,7 @@ void AHollowGameMode::FoeAction(int32 Idx, const FString& Act, int32 Step)
 		return;
 	}
 	if (Act == TEXT("defend")) { F.GuardAc = 2; CLog(FString::Printf(TEXT("%s braces itself."), *F.Name)); return; }
+	if (Act == TEXT("close") || !InReach(Idx, 0, F.Reach)) { FoeClose(Idx); return; }
 
 	// a strike of some flavour
 	const int32 Penalty = Step == 0 ? 0 : -5;
@@ -926,4 +940,28 @@ void AHollowGameMode::CastLibSpell(const FCardDef& Card, int32 T)
 		else if (S->Traits.Contains(TEXT("illusion"))) { Combat->F[0].GuardAc += 2; CLog(TEXT("Your outline blurs: +2 AC until your next turn.")); }
 		else CLog(FString::Printf(TEXT("%s takes hold."), *S->Name));
 	}
+}
+
+
+// A foe out of reach strides toward the nearest open hex next to you (one action, up to its Speed).
+void AHollowGameMode::FoeClose(int32 Idx)
+{
+	if (!Combat.IsSet()) return;
+	const FFighter& F = Combat->F[Idx];
+	const int32 Steps = FMath::Max(1, F.Speed / 5);
+	TArray<FIntPoint> Best;
+	int32 BestLeft = 999;
+	for (int32 d = 0; d < 6; ++d)
+	{
+		static const FIntPoint Ds[6] = { { 1, 0 }, { 1, -1 }, { 0, -1 }, { -1, 0 }, { -1, 1 }, { 0, 1 } };
+		const FIntPoint Goal = Combat->F[0].Cell + Ds[d];
+		if (!CellFree(Goal, Idx)) continue;
+		const TArray<FIntPoint> P = PathTo(Idx, Goal, 40);
+		if (P.Num() && P.Num() < BestLeft) { Best = P; BestLeft = P.Num(); }
+	}
+	if (!Best.Num()) { CLog(FString::Printf(TEXT("%s can't find a way to you."), *F.Name)); return; }
+	if (Best.Num() > Steps) Best.SetNum(Steps);
+	MoveFighter(Idx, Best);
+	CLog(FString::Printf(TEXT("%s closes %d feet."), *F.Name, Best.Num() * 5));
+	RefreshGridHighlight();
 }

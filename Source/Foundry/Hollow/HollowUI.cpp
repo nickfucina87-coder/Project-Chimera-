@@ -349,7 +349,7 @@ void SHollowUI::Rebuild()
 	switch (G->Mode)
 	{
 	case EHollowMode::Title: Main = BuildTitle(); break;
-	case EHollowMode::Create: Main = BuildCreate(); break;
+	case EHollowMode::Create: Main = G->bBuilder ? BuildBuilder() : BuildCreate(); break;
 	case EHollowMode::Explore: Main = BuildExplore(); break;
 	case EHollowMode::Map: Main = BuildMap(); break;
 	case EHollowMode::Combat: Main = BuildCombat(); break;
@@ -526,6 +526,7 @@ TSharedRef<SWidget> SHollowUI::BuildCreate()
 					]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 2)[T(FString::Printf(TEXT("Starting gear: %s, %s, adventurer's pack, %d rations, a healing potion, torches and a kit tool."), *P.WeaponName, *P.ArmorName, P.Count(TEXT("ration"))), 11, Ink)]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 12)[T(TEXT("Starter deck: ") + DeckLine, 10, InkDim)]
+					+ SVerticalBox::Slot().AutoHeight().Padding(0, 0, 0, 10)[Btn(TEXT("Full character builder: every class, subclass and option"), [G] { G->OpenBuilder(); }, true, C(0x3B4F7A), C(0xF6E7C8), 15)]
 					+ SVerticalBox::Slot().AutoHeight()[Label(TEXT("OR BRING YOUR OWN: PATHBUILDER 2E"))]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 4)
 					[
@@ -780,6 +781,8 @@ TSharedRef<SWidget> SHollowUI::BuildCombat()
 			]
 		];
 	};
+	Cmd(G->Combat->bMoveMode && !G->Combat->bStepMode ? TEXT("Stride (pick a hex)") : TEXT("Stride"), FString::Printf(TEXT("up to %d ft"), (G->PC.Speed / 5) * 5), 1, true, [G] { G->CombatMove(false); });
+	Cmd(G->Combat->bMoveMode && G->Combat->bStepMode ? TEXT("Step (pick a hex)") : TEXT("Step"), TEXT("5 ft"), 1, true, [G] { G->CombatMove(true); });
 	Cmd(TEXT("Strike"), FString::Printf(TEXT("%s, d20 %s%s"), *G->PC.WeaponName, *Sgn(AtkMod(G->PC)), Pen ? *FString::Printf(TEXT(" (%d MAP)"), Pen) : TEXT("")), 1, true, [G] { G->CombatStrike(); });
 	Cmd(TEXT("Raise Guard"), TEXT("+2 AC until your next turn"), 1, true, [G] { G->CombatGuard(); });
 	Cmd(FString::Printf(TEXT("Potion (%d)"), G->PC.Count(TEXT("potion"))), TEXT("Heal 2d8+4"), 1, G->PC.Count(TEXT("potion")) > 0, [G] { G->CombatPotion(); });
@@ -1495,7 +1498,7 @@ TSharedRef<SWidget> SHollowUI::BuildTrade()
 			+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center)[Btn(Btn_, Fn, bOk, bOk ? C(0x5A4220) : Panel2, Fg, 12)];
 	};
 	TSharedRef<SVerticalBox> Wares = SNew(SVerticalBox);
-	for (const FString& Id : N->Stock)
+	for (const FString& Id : G->ShopStock(*N))
 		if (const FItemDef* D = HollowItems::Find(Id))
 			Wares->AddSlot().AutoHeight().Padding(0, 3)[ItemRow(*D, FString::Printf(TEXT("%d"), D->Price), TEXT("Buy"), G->PC.Gold >= D->Price, [G, Id] { G->Buy(Id); })];
 	TSharedRef<SVerticalBox> Mine = SNew(SVerticalBox);
@@ -1735,5 +1738,267 @@ TSharedRef<SWidget> SHollowUI::BuildLibrary()
 					], C(0x120E16, 0.85f), FMargin(16, 14), false)
 				],
 			Leather(), C(0x5A4A40), FMargin(18, 16))
+		];
+}
+
+/* ---------- Full character builder ---------- */
+
+TSharedRef<SWidget> SHollowUI::BuildBuilder()
+{
+	AHollowGameMode* G = GM.Get();
+	const FBuildDraft& D = G->Draft;
+	const FLibClass* Cls = HollowLib::Class(D.Class);
+	const FLibAncestry* Anc = HollowLib::Ancestry(D.Ancestry);
+	const FString Q = D.Search.ToLower();
+	auto Match = [&](const FString& N) { return Q.IsEmpty() || N.ToLower().Contains(Q); };
+	auto RarityTag = [](const FString& R) { return R == TEXT("common") || R.IsEmpty() ? FString() : TEXT("  [") + R + TEXT("]"); };
+
+	// one selectable option card
+	auto Opt = [](const FString& Title, const FString& Sub, bool bOn, bool bEnabled, TFunction<void()> Fn, float W = 300.f) -> TSharedRef<SWidget>
+	{
+		return SNew(SBox).WidthOverride(W)
+			[
+				SNew(SButton).ButtonStyle(&BtnStyle()).ButtonColorAndOpacity(bOn ? Gold : Panel2).ContentPadding(FMargin(8, 5)).IsEnabled(bEnabled)
+				.ToolTipText(FText::FromString(Sub))
+				.OnClicked_Lambda([Fn] { Fn(); return FReply::Handled(); })
+				[
+					SNew(SVerticalBox)
+					+ SVerticalBox::Slot().AutoHeight()[TF(Title, Display(13), bOn ? C(0x1B1206) : Fg, false)]
+					+ SVerticalBox::Slot().AutoHeight()[SNew(STextBlock).Text(FText::FromString(Sub.Left(150))).Font(Body(12, true)).ColorAndOpacity(FSlateColor(bOn ? C(0x1B1206) : Dim)).AutoWrapText(true)]
+				]
+			];
+	};
+	TSharedRef<SVerticalBox> Mid = SNew(SVerticalBox);
+	auto Grid = [&]() { TSharedRef<SWrapBox> W = SNew(SWrapBox).UseAllottedSize(true).InnerSlotPadding(FVector2D(6, 6)); return W; };
+	auto Head = [&](const FString& S) { Mid->AddSlot().AutoHeight().Padding(0, 8, 0, 6)[Section(S)]; };
+	auto Scroll = [&](const TSharedRef<SWidget>& W, float H = 560.f) { Mid->AddSlot().AutoHeight()[SNew(SBox).MaxDesiredHeight(H)[SNew(SScrollBox) + SScrollBox::Slot()[W]]]; };
+	auto Pick = [G](const FString& Field, const FString& Value) { return [G, Field, Value] { G->BuilderPick(Field, Value); }; };
+	auto AbilRow = [&](const FString& Field, const TArray<FString>& Chosen, int32 Max, const TArray<FString>& Allowed)
+	{
+		TSharedRef<SHorizontalBox> R = SNew(SHorizontalBox);
+		for (const TCHAR* K : { TEXT("str"), TEXT("dex"), TEXT("con"), TEXT("int"), TEXT("wis"), TEXT("cha") })
+		{
+			const FString Id = K;
+			const bool bOn = Chosen.Contains(Id);
+			const bool bOk = Allowed.Num() == 0 || Allowed.Contains(Id);
+			R->AddSlot().AutoWidth().Padding(0, 0, 6, 0)[Opt(Id.ToUpper(), FString::Printf(TEXT("now %s"), *Sgn(G->DraftAbil(Id))), bOn, bOk && (bOn || Chosen.Num() < Max), Pick(Field, Id), 110.f)];
+		}
+		Mid->AddSlot().AutoHeight()[R];
+	};
+
+	int32 Shown = 0;
+	switch (D.Step)
+	{
+	case 0:
+	{
+		Head(TEXT("ANCESTRY"));
+		TSharedRef<SWrapBox> W = Grid();
+		for (const FLibAncestry& A : HollowLib::Ancestries())
+			if (Match(A.Name)) W->AddSlot()[Opt(A.Name + RarityTag(A.Rarity), FString::Printf(TEXT("%d HP, %d ft, %s. %s"), A.Hp, A.Speed, *A.Vision, *A.Text), D.Ancestry == A.Name, true, Pick(TEXT("ancestry"), A.Name))];
+		Scroll(W);
+		break;
+	}
+	case 1:
+	{
+		Head(FString::Printf(TEXT("HERITAGE  -  %s"), *D.Ancestry));
+		TSharedRef<SWrapBox> W = Grid();
+		for (const FLibEntry* H : HollowLib::HeritagesOf(D.Ancestry))
+			if (Match(H->Name) && Shown++ < 220) W->AddSlot()[Opt(H->Name + RarityTag(H->Rarity) + (H->Parent.IsEmpty() ? TEXT("  (versatile)") : TEXT("")), H->Text, D.Heritage == H->Name, true, Pick(TEXT("heritage"), H->Name))];
+		Scroll(W);
+		break;
+	}
+	case 2:
+	{
+		Head(TEXT("BACKGROUND"));
+		TSharedRef<SWrapBox> W = Grid();
+		for (const FLibEntry& B : HollowLib::Backgrounds())
+			if (Match(B.Name) && Shown++ < 220)
+			{
+				const FString Bo = B.Boosts.Num() ? FString::Join(B.Boosts[0], TEXT("/")).ToUpper() : FString();
+				W->AddSlot()[Opt(B.Name + RarityTag(B.Rarity), FString::Printf(TEXT("Boost %s + free. Trained: %s. %s"), *Bo, *FString::Join(B.Skills, TEXT(", ")), *B.Text), D.Background == B.Name, true, Pick(TEXT("background"), B.Name))];
+			}
+		Scroll(W);
+		break;
+	}
+	case 3:
+	{
+		Head(TEXT("CLASS"));
+		TSharedRef<SWrapBox> W = Grid();
+		for (const FLibClass& Cl : HollowLib::Classes())
+			if (Match(Cl.Name)) W->AddSlot()[Opt(Cl.Name, FString::Printf(TEXT("%d HP, key %s%s. %s"), Cl.Hp, *FString::Join(Cl.KeyAbility, TEXT(" or ")).ToUpper(), Cl.Spellcasting > 0 ? TEXT(", spellcaster") : TEXT(""), *Cl.Text), D.Class == Cl.Name, true, Pick(TEXT("class"), Cl.Name))];
+		Scroll(W, 440.f);
+		if (Cls && Cls->KeyAbility.Num() > 1) { Head(TEXT("KEY ATTRIBUTE")); AbilRow(TEXT("key"), { D.KeyAbility }, 1, Cls->KeyAbility); }
+		break;
+	}
+	case 4:
+	{
+		if (!Cls) { Head(TEXT("Choose a class first")); break; }
+		const TArray<const FLibChoice*> Chs = HollowLib::ChoicesFor(Cls->Name, 1);
+		if (!Chs.Num()) Head(FString::Printf(TEXT("%s has no subclass to choose at level 1"), *Cls->Name));
+		for (const FLibChoice* Ch : Chs)
+		{
+			Head(Ch->Feature.ToUpper());
+			TSharedRef<SWrapBox> W = Grid();
+			for (const FLibEntry& O : Ch->Options)
+				W->AddSlot()[Opt(O.Name + RarityTag(O.Rarity), O.Text, D.Picks.FindRef(Ch->Feature) == O.Name, true, Pick(TEXT("pick:") + Ch->Feature, O.Name))];
+			Scroll(W, Chs.Num() > 1 ? 260.f : 560.f);
+		}
+		break;
+	}
+	case 5:
+	{
+		if (Anc)
+		{
+			TArray<FString> Fixed;
+			for (const TArray<FString>& S : Anc->Boosts) if (S.Num() == 1) Fixed.Add(S[0].ToUpper());
+			const int32 Free = Anc->Boosts.FilterByPredicate([](const TArray<FString>& S) { return S.Num() > 1; }).Num();
+			Head(FString::Printf(TEXT("ANCESTRY  -  fixed %s, %d free"), Fixed.Num() ? *FString::Join(Fixed, TEXT(", ")) : TEXT("none"), Free));
+			AbilRow(TEXT("ancboost"), D.AncBoosts, Free, {});
+		}
+		if (const FLibEntry* Bg = HollowLib::Backgrounds().FindByPredicate([&](const FLibEntry& B) { return B.Name == D.Background; }))
+		{
+			Head(FString::Printf(TEXT("BACKGROUND  -  one of %s, plus one free"), Bg->Boosts.Num() ? *FString::Join(Bg->Boosts[0], TEXT("/")).ToUpper() : TEXT("any")));
+			AbilRow(TEXT("bgboost"), D.BgBoosts, 2, {});
+		}
+		Head(FString::Printf(TEXT("CLASS KEY  -  %s"), D.KeyAbility.IsEmpty() ? TEXT("choose it on the Class step") : *D.KeyAbility.ToUpper()));
+		Head(TEXT("FOUR FREE BOOSTS  -  four different attributes"));
+		AbilRow(TEXT("freeboost"), D.FreeBoosts, 4, {});
+		break;
+	}
+	case 6:
+	{
+		Head(FString::Printf(TEXT("SKILLS  -  pick %d (class extras + Int, plus one for each overlap)"), G->DraftSkillPicks()));
+		TSharedRef<SWrapBox> W = Grid();
+		const FPC P = G->BuilderPC();
+		for (const FString& S : SkillList())
+		{
+			const bool bOn = D.Skills.Contains(S);
+			const bool bFree = !bOn && P.Ranks.FindRef(S) > 0;
+			W->AddSlot()[Opt(SkillName(S), bFree ? TEXT("already trained") : bOn ? TEXT("trained (your pick)") : TEXT("untrained"), bOn, !bFree && (bOn || D.Skills.Num() < G->DraftSkillPicks()), Pick(TEXT("skill"), S), 180.f)];
+		}
+		Scroll(W);
+		break;
+	}
+	case 7:
+	{
+		const FString A = D.Ancestry.ToLower(), Cl = D.Class.ToLower();
+		Head(TEXT("ANCESTRY FEAT (level 1)"));
+		TSharedRef<SWrapBox> W = Grid();
+		for (const FLibFeat& F : HollowLib::Feats())
+			if (F.Level == 1 && F.Category == TEXT("ancestry") && F.Traits.Contains(A) && Match(F.Name)) W->AddSlot()[Opt(F.Name + RarityTag(F.Rarity), F.Text, D.AncFeat == F.Name, true, Pick(TEXT("ancfeat"), F.Name))];
+		Scroll(W, 260.f);
+		if (Cls && Cls->ClassFeat.Contains(1))
+		{
+			Head(FString::Printf(TEXT("%s FEAT (level 1)"), *D.Class.ToUpper()));
+			TSharedRef<SWrapBox> W2 = Grid();
+			for (const FLibFeat& F : HollowLib::Feats())
+				if (F.Level == 1 && F.Category == TEXT("class") && F.Traits.Contains(Cl) && Match(F.Name)) W2->AddSlot()[Opt(F.Name + RarityTag(F.Rarity), F.Text, D.ClassFeat == F.Name, true, Pick(TEXT("classfeat"), F.Name))];
+			Scroll(W2, 260.f);
+		}
+		break;
+	}
+	case 8:
+	{
+		const FString Trad = G->DraftTradition();
+		if (Trad.IsEmpty()) { Head(TEXT("No spellcasting for this class (yet)")); break; }
+		Head(FString::Printf(TEXT("CANTRIPS  -  %d / 5, %s"), D.Cantrips.Num(), *Trad));
+		TSharedRef<SWrapBox> W = Grid();
+		TSharedRef<SWrapBox> W2 = Grid();
+		for (const FLibSpell& S : HollowLib::Spells())
+		{
+			if (!S.Traditions.Contains(Trad) || S.bFocus || !Match(S.Name) || S.Rarity == TEXT("unique")) continue;
+			if (S.bCantrip) W->AddSlot()[Opt(S.Name + RarityTag(S.Rarity), HollowLib::SpellSummary(S, 1) + TEXT(". ") + S.Text, D.Cantrips.Contains(S.Name), D.Cantrips.Contains(S.Name) || D.Cantrips.Num() < 5, Pick(TEXT("cantrip"), S.Name), 260.f)];
+			else if (S.Rank == 1) W2->AddSlot()[Opt(S.Name + RarityTag(S.Rarity), HollowLib::SpellSummary(S, 1) + TEXT(". ") + S.Text, D.Spells.Contains(S.Name), D.Spells.Contains(S.Name) || D.Spells.Num() < 2, Pick(TEXT("spell"), S.Name), 260.f)];
+		}
+		Scroll(W, 260.f);
+		Head(FString::Printf(TEXT("RANK 1 SPELLS  -  %d / 2"), D.Spells.Num()));
+		Scroll(W2, 260.f);
+		break;
+	}
+	case 9:
+	{
+		if (!Cls) { Head(TEXT("Choose a class first")); break; }
+		Head(TEXT("WEAPON  -  15 gp (150 silver) to spend"));
+		TSharedRef<SWrapBox> W = Grid();
+		TSharedRef<SWrapBox> W2 = Grid();
+		for (const FLibItem& I : HollowLib::Items())
+		{
+			if (I.Level > 0 || I.Rarity != TEXT("common") || I.Price > 150.f || !Match(I.Name)) continue;
+			if (I.Type == TEXT("weapon") && Cls->Attacks.FindRef(I.Category) > 0)
+				W->AddSlot()[Opt(I.Name, FString::Printf(TEXT("%d%s %s, %s, %g silver%s"), I.Dice, *I.Die, *I.DmgType, *I.Category, I.Price, I.Range ? *FString::Printf(TEXT(", range %d ft"), I.Range) : TEXT("")), D.Weapon == I.Name, true, Pick(TEXT("weapon"), I.Name), 230.f)];
+			else if (I.Type == TEXT("armor") && Cls->Defenses.FindRef(I.Category) > 0 && I.Category != TEXT("unarmored"))
+				W2->AddSlot()[Opt(I.Name, FString::Printf(TEXT("+%d AC, Dex cap %d, %s, %g silver"), I.Ac, I.DexCap, *I.Category, I.Price), D.Armor == I.Name, true, Pick(TEXT("armor"), I.Name), 230.f)];
+		}
+		Scroll(W, 300.f);
+		Head(TEXT("ARMOR  -  optional"));
+		Scroll(W2, 220.f);
+		break;
+	}
+	default:
+		Head(TEXT("REVIEW"));
+		Mid->AddSlot().AutoHeight()[TF(TEXT("Check the sheet on the right. When nothing is pending, Finish creates your hero; Begin then starts in Brindlemark."), Prose(17, true), Fg)];
+		break;
+	}
+
+	// left: steps and name
+	static const TCHAR* Steps[] = { TEXT("Ancestry"), TEXT("Heritage"), TEXT("Background"), TEXT("Class"), TEXT("Class choices"), TEXT("Boosts"), TEXT("Skills"), TEXT("Feats"), TEXT("Spells"), TEXT("Gear"), TEXT("Review") };
+	TSharedRef<SVerticalBox> Left = SNew(SVerticalBox);
+	Left->AddSlot().AutoHeight().Padding(0, 0, 0, 8)
+	[
+		SNew(SEditableTextBox).Text(FText::FromString(D.Name)).Font(Body(15)).HintText(FText::FromString(TEXT("Hero's name")))
+		.OnTextChanged_Lambda([G](const FText& Tx) { G->Draft.Name = Tx.ToString(); })
+		.OnTextCommitted_Lambda([G](const FText& Tx, ETextCommit::Type) { G->Draft.Name = Tx.ToString(); G->MarkUI(); })
+	];
+	for (int32 i = 0; i < 11; ++i)
+	{
+		const bool bOn = D.Step == i;
+		Left->AddSlot().AutoHeight().Padding(0, 2)[Btn(FString::Printf(TEXT("%d  %s"), i + 1, Steps[i]), [G, i] { G->BuilderStep(i); }, true, bOn ? Gold : Panel2, bOn ? C(0x1B1206) : Fg, 13)];
+	}
+	Left->AddSlot().AutoHeight().Padding(0, 10, 0, 0)
+	[
+		SNew(SEditableTextBox).Text(FText::FromString(D.Search)).Font(Body(13)).HintText(FText::FromString(TEXT("Search this step...")))
+		.OnTextCommitted_Lambda([G](const FText& Tx, ETextCommit::Type) { G->Draft.Search = Tx.ToString(); G->MarkUI(); })
+	];
+
+	// right: live sheet and what's still open
+	const FPC P = G->BuilderPC();
+	TSharedRef<SVerticalBox> Right = SNew(SVerticalBox);
+	Right->AddSlot().AutoHeight()[TF(P.Name, Display(22), Gold)];
+	Right->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[TF(FString::Printf(TEXT("%s %s %s  -  %s"), *D.Heritage, *D.Ancestry, *D.Class, *D.Background), Body(13, true), Dim)];
+	TSharedRef<SHorizontalBox> Ab = SNew(SHorizontalBox);
+	for (const TCHAR* K : { TEXT("str"), TEXT("dex"), TEXT("con"), TEXT("int"), TEXT("wis"), TEXT("cha") })
+		Ab->AddSlot().AutoWidth().Padding(0, 0, 10, 0)[Stat(FString(K).ToUpper(), Sgn(P.Abil.FindRef(K)))];
+	Right->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[Ab];
+	Right->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[TF(FString::Printf(TEXT("HP %d   AC %d   Perception %s   Fort %s  Ref %s  Will %s   Speed %d ft"), P.HpMax, AC(P), *Sgn(SkillMod(P, TEXT("perception"))),
+		*Sgn(SaveMod(P, TEXT("fort"))), *Sgn(SaveMod(P, TEXT("ref"))), *Sgn(SaveMod(P, TEXT("will"))), P.Speed), Body(13), Fg)];
+	TArray<FString> Trained;
+	for (const auto& R : P.Ranks) if (R.Value > 0) Trained.Add(SkillName(R.Key));
+	Trained.Sort();
+	Right->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[TF(TEXT("Trained: ") + FString::Join(Trained, TEXT(", ")), Body(12), Dim)];
+	TArray<FString> Fs;
+	for (const auto& F : P.Feats) Fs.Add(F.Value);
+	if (Fs.Num()) Right->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[TF(TEXT("Choices & feats: ") + FString::Join(Fs, TEXT(", ")), Body(12), Fg)];
+	if (P.Spells.Num()) Right->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[TF(TEXT("Spells: ") + FString::Join(P.Spells, TEXT(", ")), Body(12), Fg)];
+	Right->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[TF(FString::Printf(TEXT("%s, %s, %d silver left"), *P.WeaponName, *P.ArmorName, P.Gold), Body(12), Fg)];
+	if (P.RuleNotes.Num()) Right->AddSlot().AutoHeight().Padding(0, 0, 0, 6)[TF(FString::Join(P.RuleNotes, TEXT("\n")).Left(400), Body(11, true), Dim)];
+	const TArray<FString> Pend = G->BuilderPending();
+	Right->AddSlot().AutoHeight().Padding(0, 6, 0, 4)[Section(Pend.Num() ? FString::Printf(TEXT("STILL TO CHOOSE (%d)"), Pend.Num()) : FString(TEXT("READY")))];
+	for (const FString& S : Pend) Right->AddSlot().AutoHeight()[TF(TEXT("- ") + S, Body(13), C(0xF08A7E))];
+	Right->AddSlot().AutoHeight().Padding(0, 12, 0, 0)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Btn(TEXT("Back"), [G] { G->BuilderStep(G->Draft.Step - 1); }, D.Step > 0)]
+		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Btn(TEXT("Next"), [G] { G->BuilderStep(G->Draft.Step + 1); }, D.Step < 10, Gold, C(0x1B1206))]
+		+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 6, 0)[Btn(TEXT("Finish"), [G] { G->BuilderFinish(); }, Pend.Num() == 0, Wine, C(0xF6E7C8))]
+		+ SHorizontalBox::Slot().AutoWidth()[Btn(TEXT("Cancel"), [G] { G->CloseBuilder(); })]
+	];
+
+	return SNew(SBorder).BorderImage(FCoreStyle::Get().GetBrush("GenericWhiteBox")).BorderBackgroundColor(FLinearColor(0.01f, 0.005f, 0.02f, 0.85f)).Padding(FMargin(30, 24))
+		[
+			Hide(SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().Padding(0, 0, 16, 0)[SNew(SBox).WidthOverride(190)[Left]]
+				+ SHorizontalBox::Slot().FillWidth(1.f).Padding(0, 0, 16, 0)[Mid]
+				+ SHorizontalBox::Slot().AutoWidth()[SNew(SBox).WidthOverride(380)[SNew(SScrollBox) + SScrollBox::Slot()[Right]]],
+			Leather(), C(0x5A4A40), FMargin(20, 18))
 		];
 }

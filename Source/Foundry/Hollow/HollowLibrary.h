@@ -5,12 +5,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Dom/JsonObject.h"
 
 struct FLibEntry
 {
 	FString Name, Text, Rarity;
 	int32 Level = 0;
-	TArray<FString> Traits;
+	TArray<FString> Traits, Tags;
+	FString Parent;                            // heritage: its ancestry
+	TArray<TArray<FString>> Boosts, Flaws;     // ancestry / background: each slot lists the abilities it may boost
+	TArray<FString> Skills;                    // background: trained skills
+	TArray<TSharedPtr<FJsonObject>> Rules;     // Foundry rule elements (FlatModifier, GrantItem, ChoiceSet...)
 };
 
 struct FLibClass : FLibEntry
@@ -49,7 +54,7 @@ struct FLibSpell : FLibEntry
 struct FLibItem : FLibEntry
 {
 	FString Type, Usage, Die, DmgType, Group, Category;
-	int32 Dice = 1, Ac = 0, DexCap = 99, Str = 0, CheckPenalty = 0;
+	int32 Dice = 1, Ac = 0, DexCap = 99, Str = 0, CheckPenalty = 0, Range = 0;
 	float Price = 0.f, Bulk = 0.f;
 };
 
@@ -58,6 +63,25 @@ struct FLibWall { FVector4 C; int32 Move = 0, Sight = 0, Light = 0, Door = 0; };
 struct FLibLight { FVector2D P; float Bright = 0.f, Dim = 0.f; FString Color; };
 struct FLibScene { FString Name; int32 Width = 0, Height = 0, Grid = 100; float Darkness = 0.f; TArray<FLibWall> Walls; TArray<FLibLight> Lights; };
 struct FLibNpc : FLibEntry { int32 Hp = 10, Ac = 10, Per = 0, Fort = 0, Ref = 0, Will = 0; TArray<TPair<FString, FString>> Strikes; };
+
+// A build choice from a class feature's ChoiceSet: Magus hybrid study, Sorcerer bloodline, Witch patron...
+struct FLibChoice
+{
+	FString Feature, Class, Flag;
+	int32 Level = 1;
+	TArray<FLibEntry> Options;
+};
+
+struct FLibStrike { FString Name; int32 Bonus = 0; bool bRanged = false; TArray<FString> Traits; TArray<TPair<FString, FString>> Damage; };
+struct FLibCreature : FLibEntry
+{
+	FString Source, Size;
+	int32 Hp = 10, Ac = 10, Per = 0, Fort = 0, Ref = 0, Will = 0, Speed = 25;
+	TArray<FString> Senses, Immunities, Weaknesses, Resistances, Spells;
+	TArray<FLibStrike> Strikes;
+	TArray<FLibFeat> Abilities;
+};
+struct FLibHazard : FLibEntry { int32 Stealth = 0, Ac = 0, Hp = 0; FString Disable, Reset; };
 
 namespace HollowLib
 {
@@ -79,6 +103,14 @@ namespace HollowLib
 	const TArray<FLibJournal>& Journals();
 	const TArray<FLibScene>& Scenes();
 	const TArray<FLibNpc>& Npcs();
+	const TArray<FLibChoice>& Choices();
+	const TArray<FLibCreature>& Bestiary();
+	const TArray<FLibHazard>& Hazards();
+	const FLibEntry* ClassFeature(const FString& Name);
+	const FLibCreature* Creature(const FString& Name);
+	// Build choices a class makes at a level (level 1 = character creation).
+	TArray<const FLibChoice*> ChoicesFor(const FString& ClassName, int32 Level);
+	const TArray<const FLibEntry*> HeritagesOf(const FString& Ancestry);
 
 	// Name lookups (case-insensitive, Pathbuilder spellings accepted)
 	const FLibClass* Class(const FString& Name);

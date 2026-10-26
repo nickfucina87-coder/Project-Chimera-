@@ -74,20 +74,21 @@ int32 Prof(int32 Rank, int32 Level) { return Rank > 0 ? Rank * 2 + Level : 0; }
 
 int32 SkillMod(const FPC& PC, const FString& Skill)
 {
-	if (Skill == TEXT("perception")) return PC.Abil.FindRef(TEXT("wis")) + Prof(PC.PerRank, PC.Level);
+	if (Skill == TEXT("perception")) return PC.Abil.FindRef(TEXT("wis")) + Prof(PC.PerRank, PC.Level) + RuleMod(PC, { TEXT("perception"), TEXT("all") });
 	const FString* A = SkillAbil().Find(Skill);
-	return (A ? PC.Abil.FindRef(*A) : 0) + Prof(PC.Ranks.FindRef(Skill), PC.Level);
+	return (A ? PC.Abil.FindRef(*A) : 0) + Prof(PC.Ranks.FindRef(Skill), PC.Level) + PC.RuleMods.FindRef(Skill) + RuleMod(PC, { TEXT("skill-check"), TEXT("all") });
 }
 
 int32 SaveMod(const FPC& PC, const FString& Save)
 {
 	const TCHAR* A = Save == TEXT("fort") ? TEXT("con") : Save == TEXT("ref") ? TEXT("dex") : TEXT("wis");
-	return PC.Abil.FindRef(A) + Prof(PC.Saves.FindRef(Save), PC.Level);
+	const TCHAR* Full = Save == TEXT("fort") ? TEXT("fortitude") : Save == TEXT("ref") ? TEXT("reflex") : TEXT("will");
+	return PC.Abil.FindRef(A) + Prof(PC.Saves.FindRef(Save), PC.Level) + RuleMod(PC, { Full, TEXT("saving-throw"), TEXT("all") });
 }
 
-int32 AC(const FPC& PC) { return PC.AcItem + Prof(PC.ArmorRank, PC.Level); }
-int32 AtkMod(const FPC& PC) { return PC.Abil.FindRef(PC.WeaponAbil) + Prof(PC.WeaponRank, PC.Level); }
-int32 DmgBonus(const FPC& PC) { return PC.Abil.FindRef(PC.WeaponAbil); }
+int32 AC(const FPC& PC) { return PC.AcItem + Prof(PC.ArmorRank, PC.Level) + RuleMod(PC, { TEXT("ac") }); }
+int32 AtkMod(const FPC& PC) { return PC.Abil.FindRef(PC.WeaponAbil) + Prof(PC.WeaponRank, PC.Level) + RuleMod(PC, { TEXT("attack-roll"), TEXT("strike-attack-roll"), TEXT("attack") }); }
+int32 DmgBonus(const FPC& PC) { return PC.Abil.FindRef(PC.WeaponAbil) + RuleMod(PC, { TEXT("damage"), TEXT("strike-damage") }); }
 int32 CastMod(const FPC& PC) { return PC.bCaster ? PC.Abil.FindRef(PC.SpellAbil) : FMath::Max(PC.Abil.FindRef(TEXT("int")), PC.Abil.FindRef(TEXT("wis"))); }
 int32 SpellAtk(const FPC& PC) { return CastMod(PC) + Prof(PC.bCaster ? PC.SpellRank : 1, PC.Level); }
 int32 SpellDC(const FPC& PC) { return 10 + SpellAtk(PC); }

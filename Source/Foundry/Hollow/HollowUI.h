@@ -38,6 +38,7 @@ private:
 	TSharedRef<SWidget> BuildJournal();
 	TSharedRef<SWidget> BuildSystem();
 	TSharedRef<SWidget> BuildLibrary();
+	TSharedRef<SWidget> BuildBuilder();
 	TSharedRef<SWidget> BuildTrade();
 	TSharedRef<SWidget> BuildLevelUp();
 	TSharedRef<SWidget> BuildAbilities();

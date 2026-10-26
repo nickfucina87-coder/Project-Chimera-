@@ -147,6 +147,7 @@ void AHollowGameMode::Tick(float Dt)
 			case 1: Act->SetActorLocation(A.From + FVector(0, FMath::Sin(U * PI * 8) * 18.f * (1 - U), 0)); break; // shake
 			case 2: Act->SetActorLocation(FMath::Lerp(A.From, A.To, U)); break;                                // float up
 			case 3: Act->SetActorScale3D(FVector(FMath::Max(0.01f, 1.f - U), FMath::Max(0.01f, 1.f - U), FMath::Max(0.01f, 1.f - U * 0.9f))); break;
+			case 4: Act->SetActorLocation(FMath::Lerp(A.From, A.To, FMath::InterpEaseInOut(0.f, 1.f, U, 2.f)) + FVector(0, 0, FMath::Abs(FMath::Sin(U * PI * 3.f)) * 14.f)); break;   // walk a path
 			}
 		}
 		if (U >= 1.f)
@@ -155,6 +156,7 @@ void AHollowGameMode::Tick(float Dt)
 			{
 				if (A.Kind == 2) Act->Destroy();
 				else if (A.Kind == 3) Act->SetActorHiddenInGame(true);
+				else if (A.Kind == 4) Act->SetActorLocation(A.To);
 				else Act->SetActorLocation(A.From);
 			}
 			Anims.RemoveAt(i);
@@ -163,6 +165,7 @@ void AHollowGameMode::Tick(float Dt)
 
 	UpdatePrompt();
 	TickVisibility(Dt);
+	TickArenaCam(Dt);
 	TickFx(Dt);
 	TickAmbience(Dt);
 	TickFow(Dt);
@@ -302,6 +305,7 @@ void AHollowGameMode::ClickWorld(const FHitResult& Hit)
 	}
 	if (Mode == EHollowMode::Combat && Combat.IsSet())
 	{
+		if (const FIntPoint* Hc = BattleTiles.Find(Hit.GetComponent())) { if (Combat->bMoveMode) { ClickCell(*Hc); return; } }
 		for (int32 i = 1; i < Combat->F.Num(); ++i)
 			if (Combat->F[i].Puppet.Get() == Hit.GetActor()) { SetTarget(i); return; }
 		return;
@@ -384,6 +388,7 @@ void AHollowGameMode::Interact()
 		if (FMath::FRand() < 0.3f) { Give(TEXT("potion"), 1); Msg += TEXT(" and a healing potion"); }
 		else if (FMath::FRand() < 0.4f) { Give(TEXT("ration"), 2); Msg += TEXT(" and 2 rations"); }
 		else if (FMath::FRand() < 0.3f) { Give(TEXT("torch"), 1); Msg += TEXT(" and a torch"); }
+		if (FMath::FRand() < 0.2f) { const FString Lib = RollLoot(HexLevel(Pos), FMath::Rand()); if (const FItemDef* Ld = HollowItems::Find(Lib)) { Give(Lib, 1); Msg += TEXT(" and ") + Ld->Name; } }
 		Toast(Msg + TEXT("."));
 		Log(Msg + TEXT("."));
 		PlaySfx(TEXT("coins"));
@@ -415,6 +420,7 @@ void AHollowGameMode::ToggleMap()
 void AHollowGameMode::Escape()
 {
 	if (bPaused) { SetPaused(false); return; }
+	if (Combat.IsSet() && Combat->bMoveMode) { Combat->bMoveMode = false; Combat->Reachable.Reset(); RefreshGridHighlight(); MarkUI(); return; }
 	if (LevelUp.IsSet() || Reward.IsSet() || (Event.IsSet() && Event->Choice < 0)) return;
 	if (Note.IsSet()) CloseNote();
 	else if (Trade.IsSet()) CloseTrade();
