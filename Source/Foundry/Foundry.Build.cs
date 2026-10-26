@@ -7,7 +7,7 @@ public class Foundry : ModuleRules
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"Core", "CoreUObject", "Engine", "InputCore", "Slate", "SlateCore", "ProceduralMeshComponent",
-			"Niagara", "HTTP", "Json", "JsonUtilities"
+			"Niagara", "HTTP", "Json", "JsonUtilities", "ImageCore"
 		});
 	}
 }

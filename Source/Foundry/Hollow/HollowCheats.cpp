@@ -38,6 +38,8 @@ struct FHollowCheats
 		else if (V == TEXT("xp")) G->GainXp(FMath::Max(1, Int(1)));
 		else if (V == TEXT("reply")) G->ChooseTalk(Int(1) - 1);
 		else if (V == TEXT("builder")) G->OpenBuilder();
+		else if (V == TEXT("cottage") && G->Hero) G->BuildPZCottage(G->Hero->GetActorLocation() + FVector(900, 0, -85), 1);
+		else if (V == TEXT("lot") && G->Hero) G->BuildPZLot(G->Hero->GetActorLocation() + FVector(0, 0, -85), Int(1));
 		else if (V == TEXT("bstep")) G->BuilderStep(Int(1));
 		else if (V == TEXT("bpick") && Args.Num() > 2) G->BuilderPick(Args[1], Rest(2));
 		else if (V == TEXT("bfinish")) G->BuilderFinish();

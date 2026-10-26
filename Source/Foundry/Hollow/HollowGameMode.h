@@ -407,6 +407,18 @@ private:
 	void TickAmbience(float Dt);
 	void BuildRim(const FHollowHex& Hex, FRandomStream& Rng);
 	void BuildEdges();
+	// Project Zomboid tiles as local stand-in building art (HollowPZ.cpp)
+	FString PZPalette(const FString& Key) const;
+	void PZQuad(AActor* A, const FString& Sprite, const FVector P[4], const FVector2D Uv[4]);
+	void BuildPZCottage(const FVector& Center, int32 Seed);
+	void SearchContainer(const FInteractable& I);
+	void BuildPZLot(const FVector& Center, int32 Seed);
+	void TickCutaway();
+	static constexpr float PZSquare = 100.f;   // one PZ square in cm: their 1 m squares at our character scale
+	struct FLotWall { TWeakObjectPtr<UPrimitiveComponent> C; FVector P; };
+	TArray<FLotWall> CutWalls;
+	TArray<FBox2D> LotBounds;
+	TSet<TWeakObjectPtr<AActor>> LotActors;
 	void TickVisibility(float Dt);
 	TArray<TWeakObjectPtr<AActor>> WatcherActors;
 	float VisClock = 0.f, NoticeClock = 0.f;

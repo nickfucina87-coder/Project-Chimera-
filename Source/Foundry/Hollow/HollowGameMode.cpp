@@ -165,6 +165,7 @@ void AHollowGameMode::Tick(float Dt)
 
 	UpdatePrompt();
 	TickVisibility(Dt);
+	TickCutaway();
 	TickArenaCam(Dt);
 	TickFx(Dt);
 	TickAmbience(Dt);
@@ -199,7 +200,7 @@ void AHollowGameMode::Tick(float Dt)
 			GetWorld()->SweepMultiByChannel(Hits, Cam, Target, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(60.f), Q);
 			for (const FHitResult& H : Hits)
 				if (AActor* A = H.GetActor())
-					if (LocalActors.Contains(A) && (H.ImpactPoint - Target).Size() > 120.f) Blocking.Add(A);
+					if (LocalActors.Contains(A) && !LotActors.Contains(A) && (H.ImpactPoint - Target).Size() > 120.f) Blocking.Add(A);
 		}
 		for (const TWeakObjectPtr<AActor>& A : Occluders) if (A.IsValid() && !Blocking.Contains(A)) A->SetActorHiddenInGame(false);
 		for (const TWeakObjectPtr<AActor>& A : Blocking) if (A.IsValid()) A->SetActorHiddenInGame(true);
@@ -368,6 +369,19 @@ void AHollowGameMode::Interact()
 	else if (I.Kind == TEXT("exit")) ToggleMap();
 	else if (I.Kind == TEXT("feature")) UseFeature(I);
 	else if (I.Kind == TEXT("edge")) EdgeTravel(I.Index);
+	else if (I.Kind == TEXT("search")) SearchContainer(I);
+	else if (I.Kind == TEXT("door"))
+	{
+		// open: the door slides out of the way (hidden, no collision); close it again with E
+		if (AActor* Dr = I.Actor.Get())
+		{
+			const bool bOpen = !Dr->IsHidden();
+			Dr->SetActorHiddenInGame(bOpen);
+			Dr->SetActorEnableCollision(!bOpen);
+			for (FInteractable& X : Interactables) if (X.Actor == I.Actor) X.Label = bOpen ? TEXT("Close the door") : TEXT("Open the door");
+			PlaySfx(TEXT("creak"), 0.6f);
+		}
+	}
 	else if (I.Kind == TEXT("event"))
 	{
 		if (FHollowHex* H = Hexes.Find(Pos))
@@ -675,6 +689,9 @@ void AHollowGameMode::AddInteract(AActor* A, const FString& Kind, const FString&
 void AHollowGameMode::ClearLocal()
 {
 	FeatureGlows.Reset();
+	CutWalls.Reset();
+	LotBounds.Reset();
+	LotActors.Reset();
 	WatcherActors.Reset();
 	bNoticed = false;
 	NoticeClock = 0.f;
@@ -1120,6 +1137,9 @@ void AHollowGameMode::BuildWild(const FHollowHex& Hex)
 		AActor* Bn = Local(HollowArt::Bones(W, BonesAt, Rng.FRandRange(0.f, 360.f)));
 		AddInteract(Bn, TEXT("examine"), TEXT("bones"), TEXT("Examine the bones"), 0, 240.f);
 	}
+
+	// an abandoned cottage on some wild hexes (stand-in Project Zomboid tiles until our own tiles exist)
+	if (Rng.FRand() < 0.6f) { FVector Cot; if (Pick(300.f, 900.f, 900.f, Cot)) BuildPZLot(Cot, Rng.RandRange(0, 99999)); }
 
 	// tool-gated spots: what you carry decides what you can do here
 	BuildFeatures(Hexes.FindChecked(FIntPoint(Hex.Q, Hex.R)), [&](float MinR, float MaxR, float R, FVector& Out) { return Pick(MinR, MaxR, R, Out); });
