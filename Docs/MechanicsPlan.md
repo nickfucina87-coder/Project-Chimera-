@@ -128,6 +128,74 @@ The goal is to move from FF-style turns toward Foundry's pf2e encounter rules wh
 3. Should the level cap stay at 20, with XP following pf2e's 1000-per-level?
 4. For character creation, should rarity follow pf2e (common free, uncommon and rare need GM access), or is everything unlocked?
 
+## Overnight progress (2026-10-26, 12:36 am, no editor restart)
+
+**Rules library rebuilt (12.1 MB, local only).** It now includes:
+
+- **Rule elements** (`rules` arrays) on feats, class features, equipment, conditions and creature abilities. The most common keys give the build order for the C++ rules engine:
+
+  | Rule key | Uses |
+  |---|---|
+  | ItemAlteration | 890 |
+  | ActiveEffectLike | 671 |
+  | GrantItem | 554 |
+  | FlatModifier | 552 |
+  | RollOption | 511 |
+  | ChoiceSet | 261 |
+  | Note | 238 |
+  | AdjustDegreeOfSuccess | 131 |
+  | DamageDice | 126 |
+  | Strike | 114 |
+  | BaseSpeed | 110 |
+  | Resistance | 107 |
+
+- **Build choices** (`choices`, 45), resolved from ChoiceSet `item:tag:` filters and UUID lists. Examples:
+  - Magus hybrid study (8)
+  - Sorcerer bloodline (18)
+  - Witch patron (16)
+  - Wizard school (14) and thesis (5)
+  - Oracle mystery (11)
+  - Druid order (9)
+  - Barbarian instinct (10)
+  - Champion cause (7)
+  - Rogue racket (6)
+  - Bard muse (5)
+  - Cleric doctrine (3)
+  - Kineticist gates
+  - Inventor innovations
+  - Thaumaturge implements
+  - Psychic minds
+  - Gunslinger ways
+  - Swashbuckler styles
+  - Investigator methodologies
+  - Ranger edge
+  - Alchemist field
+  - Animist practice
+  - Exemplar ikons and epithets
+
+  Fighter, Monk, Guardian and Commander have no level-1 subclass, which is correct. **Summoner's eidolon still needs handling** (its choice uses a config/predicate form), and so does the Cleric deity (it comes from `deities`).
+- **Bestiary** (662 creatures from Monster Core plus legacy Bestiary entries that weren't remastered). Each has level, rarity, size, traits, HP, AC, Perception, senses, speeds, saves, immunities, weaknesses, resistances, strikes (bonus, damage, traits, effects), abilities (with their rules) and spells.
+- **Hazards** (54): Stealth, disable, reset, AC, HP, actions.
+
+### Morning queue: needs the editor closed (header changes)
+
+1. **`HollowLibrary.h`:** add `FLibChoice` (feature, class, level, flag, options), `FLibCreature`, `FLibHazard`, and a `Rules` field (raw JSON object array) on entries; parse them in `HollowLibrary.cpp`.
+2. **Character builder wizard** (`HollowUI.h` + `HollowGameMode.h` state):
+   - Steps: Ancestry → Heritage → Background → Class → Subclass (from `choices`) → Boosts (pf2e free-boost rules) → Skills → Feats → Spells → Gear → Review.
+   - A pending-choices list blocks Confirm.
+   - Replace the 4 hand-built kits with a data-driven `FClassBuild`; the kits become presets.
+3. **Rules engine v1** (new `HollowEffects.h/.cpp`): apply FlatModifier, DamageDice, Resistance/Weakness/Immunity, AdjustDegreeOfSuccess, RollOption predicates (a simple subset), BaseSpeed and Note, from feats, items, conditions and creature abilities, to checks, attacks, damage and AC.
+4. **Hex battle grid** (`FCombatState` / `FFighter` get hex coordinates):
+   - 5-ft hexes on the arena floor; Stride and Step cost actions using Speed; reach; flanking gives off-guard; cover comes from the line-of-sight system.
+   - Free orbit camera in combat: right-mouse drag plus Q/R, Shift for smooth free rotation.
+   - Monsters come from the bestiary, scaled to the hex's level.
+5. **Shops and loot by availability:**
+   - a settlement level on town hexes
+   - stock is common items up to the settlement level
+   - uncommon items appear in roughly 10–15% of restocks
+   - rare items roughly 2%, in cities only
+   - loot follows pf2e's Treasure by Level
+
 ## What happens while you're away
 
 The editor is open, so only Live Coding (`.cpp`-only) changes are possible.

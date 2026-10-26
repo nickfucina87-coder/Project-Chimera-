@@ -38,6 +38,9 @@ const silver = (p) => { const v = p?.value ?? {}; return (v.pp ?? 0) * 100 + (v.
 const traits = (s) => s?.traits?.value ?? [];
 const rarity = (s) => s?.traits?.rarity ?? "common";
 const desc = (s, n) => plain(s?.description?.value, n);
+// Foundry rule elements (FlatModifier, ChoiceSet, GrantItem, DamageDice, Resistance...), kept as data for the C++ rules engine
+const rules = (s) => (s?.rules ?? []).filter((r) => r && r.key).map((r) => { const o = { ...r }; delete o.slug; delete o._migration; return o; });
+const tags = (s) => s?.traits?.otherTags ?? [];
 
 const lib = { version: 1, source: "Foundry VTT pf2e export + Pathmuncher rename tables", built: new Date().toISOString() };
 
@@ -68,9 +71,35 @@ lib.feats = pack("feats").map((d) => {
   const s = d.system;
   return { name: d.name, level: s.level?.value ?? 1, category: s.category, rarity: rarity(s), traits: traits(s),
     action: s.actionType?.value ?? "passive", actions: s.actions?.value ?? null,
-    prereq: (s.prerequisites?.value ?? []).map((p) => p.value), text: desc(s, 360) };
+    prereq: (s.prerequisites?.value ?? []).map((p) => p.value), tags: tags(s), rules: rules(s), text: desc(s, 360) };
 });
-lib.classFeatures = pack("classfeatures").map((d) => ({ name: d.name, level: d.system.level?.value ?? 1, traits: traits(d.system), text: desc(d.system, 360) }));
+const cfDocs = pack("classfeatures");
+lib.classFeatures = cfDocs.map((d) => ({ name: d.name, level: d.system.level?.value ?? 1, traits: traits(d.system), tags: tags(d.system), rules: rules(d.system), text: desc(d.system, 360) }));
+
+// Subclasses and other build choices: every class feature with a ChoiceSet becomes a choice with resolved options.
+// Foundry writes the options either as "item:tag:<tag>" filters (Magus hybrid study, Sorcerer bloodline...) or as UUID lists.
+const byUuid = new Map();
+for (const [packName, docs] of [["classfeatures", cfDocs], ["feats", pack("feats")]])
+  for (const d of docs) byUuid.set(`Compendium.pf2e.${packName}.Item.${d._id}`, d);
+const featDocs = [...byUuid.values()];
+lib.choices = [];
+for (const d of cfDocs) {
+  for (const r of d.system.rules ?? []) {
+    if (r.key !== "ChoiceSet") continue;
+    let opts = [];
+    const ch = r.choices;
+    if (Array.isArray(ch)) opts = ch.map((c) => byUuid.get(c.value)).filter(Boolean);
+    else if (ch?.filter) {
+      const want = ch.filter.filter((f) => typeof f === "string" && f.startsWith("item:tag:")).map((f) => f.slice(9));
+      if (want.length) opts = featDocs.filter((x) => want.every((t) => tags(x.system).includes(t)));
+    }
+    if (!opts.length) continue;
+    if (lib.choices.some((c) => c.feature === d.name && (c.flag === (r.flag ?? "")))) continue;   // Foundry repeats some ChoiceSets
+    const cls = traits(d.system).find((t) => lib.classes.some((c) => c.name.toLowerCase() === t)) ?? "";
+    lib.choices.push({ feature: d.name, class: cls, level: d.system.level?.value ?? 1, flag: r.flag ?? "", prompt: r.prompt ?? "",
+      options: [...new Map(opts.map((o) => [o.name, { name: o.name, rarity: rarity(o.system), text: desc(o.system, 400) }])).values()] });
+  }
+}
 
 lib.spells = pack("spells").map((d) => {
   const s = d.system;
@@ -89,14 +118,45 @@ lib.spells = pack("spells").map((d) => {
 lib.items = pack("equipment").map((d) => {
   const s = d.system;
   const o = { name: d.name, type: d.type, level: s.level?.value ?? 0, price: silver(s.price), bulk: s.bulk?.value ?? 0, rarity: rarity(s),
-    traits: traits(s), usage: s.usage?.value ?? "", text: desc(s, 300) };
+    traits: traits(s), usage: s.usage?.value ?? "", rules: rules(s), text: desc(s, 300) };
   if (d.type === "weapon") Object.assign(o, { die: s.damage?.die, dice: s.damage?.dice, dmgType: s.damage?.damageType, group: s.group, category: s.category, range: s.range ?? null });
   if (d.type === "armor") Object.assign(o, { ac: s.acBonus, dexCap: s.dexCap, str: s.strength, checkPenalty: s.checkPenalty, speedPenalty: s.speedPenalty, category: s.category });
   if (d.type === "shield") Object.assign(o, { ac: s.acBonus, hardness: s.hardness, hp: s.hp?.max });
   if (d.type === "consumable") Object.assign(o, { category: s.category, uses: s.uses?.max ?? 1, damage: s.damage ?? null });
   return o;
 });
-lib.conditions = pack("conditions").map((d) => ({ name: d.name, valued: !!d.system.value?.isValued, text: desc(d.system, 400) }));
+const creature = (a, src) => {
+  const s = a.system ?? {};
+  const at = s.attributes ?? {};
+  const list = (x) => (x ?? []).map((v) => typeof v === "string" ? v : `${v.type}${v.value ? " " + v.value : ""}`);
+  return {
+    name: a.name, source: src, level: s.details?.level?.value ?? 0, rarity: s.traits?.rarity ?? "common", size: s.traits?.size?.value ?? "med",
+    traits: s.traits?.value ?? [], hp: at.hp?.max ?? 0, ac: at.ac?.value ?? 10, perception: s.perception?.mod ?? 0,
+    senses: (s.perception?.senses ?? []).map((x) => x.type), speed: at.speed?.value ?? 25,
+    otherSpeeds: (at.speed?.otherSpeeds ?? []).map((x) => `${x.type} ${x.value}`),
+    saves: { fort: s.saves?.fortitude?.value ?? 0, ref: s.saves?.reflex?.value ?? 0, will: s.saves?.will?.value ?? 0 },
+    immunities: list(at.immunities), weaknesses: list(at.weaknesses), resistances: list(at.resistances),
+    strikes: (a.items ?? []).filter((i) => i.type === "melee").map((i) => ({ name: i.name, bonus: i.system?.bonus?.value ?? 0, ranged: i.system?.weaponType?.value === "ranged",
+      traits: i.system?.traits?.value ?? [], damage: Object.values(i.system?.damageRolls ?? {}).map((r) => ({ formula: r.damage, type: r.damageType })),
+      effects: i.system?.attackEffects?.value ?? [] })),
+    abilities: (a.items ?? []).filter((i) => i.type === "action").map((i) => ({ name: i.name, action: i.system?.actionType?.value ?? "passive",
+      actions: i.system?.actions?.value ?? null, traits: i.system?.traits?.value ?? [], rules: rules(i.system), text: desc(i.system, 360) })),
+    spells: (a.items ?? []).filter((i) => i.type === "spell").map((i) => i.name),
+    text: plain(s.details?.publicNotes, 400),
+  };
+};
+const seen = new Set();
+lib.bestiary = [];
+for (const [packName, label] of [["pathfinder-monster-core", "Monster Core"], ["pathfinder-bestiary", "Bestiary"]])
+  for (const a of pack(packName)) if (a.type === "npc" && !seen.has(a.name)) { seen.add(a.name); lib.bestiary.push(creature(a, label)); }
+lib.hazards = pack("hazards").filter((h) => h.type === "hazard").map((h) => {
+  const s = h.system;
+  return { name: h.name, level: s.details?.level?.value ?? 0, rarity: s.traits?.rarity ?? "common", traits: s.traits?.value ?? [],
+    stealth: s.attributes?.stealth?.value ?? 0, ac: s.attributes?.ac?.value ?? 0, hp: s.attributes?.hp?.max ?? 0,
+    disable: plain(s.details?.disable, 300), reset: plain(s.details?.reset, 200), text: plain(s.details?.description, 400),
+    actions: (h.items ?? []).filter((i) => i.type === "action").map((i) => ({ name: i.name, action: i.system?.actionType?.value, text: desc(i.system, 300) })) };
+});
+lib.conditions = pack("conditions").map((d) => ({ name: d.name, valued: !!d.system.value?.isValued, rules: rules(d.system), overrides: d.system.overrides ?? [], text: desc(d.system, 400) }));
 lib.actions = pack("actions").map((d) => ({ name: d.name, action: d.system.actionType?.value, actions: d.system.actions?.value ?? null, traits: traits(d.system), text: desc(d.system, 300) }));
 lib.deities = pack("deities").map((d) => ({ name: d.name, sanctification: d.system.sanctification ?? null, font: d.system.font ?? [], weapons: d.system.weapons ?? [], text: desc(d.system, 240) }));
 
