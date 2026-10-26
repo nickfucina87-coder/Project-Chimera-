@@ -45,7 +45,7 @@ void AHollowGameMode::BuildAtmosphere()
 	UDirectionalLightComponent* Moon = NewObject<UDirectionalLightComponent>(Sky);
 	Moon->SetupAttachment(Sky->GetRootComponent());
 	Moon->SetWorldRotation(FRotator(-16.f, 135.f, 0.f));
-	Moon->SetIntensity(2.5f);
+	Moon->SetIntensity(4.f);
 	Moon->SetLightColor(FLinearColor(0.55f, 0.5f, 1.f));
 	Moon->SetAtmosphereSunLight(true);
 	Moon->SetCastShadows(true);
@@ -64,7 +64,7 @@ void AHollowGameMode::BuildAtmosphere()
 	Amb->SourceType = SLS_CapturedScene;
 	Amb->bLowerHemisphereIsBlack = false;
 	Amb->SetLowerHemisphereColor(FLinearColor(0.02f, 0.02f, 0.035f));
-	Amb->SetIntensity(0.7f);
+	Amb->SetIntensity(1.0f);
 	Amb->SetLightColor(FLinearColor(0.55f, 0.6f, 0.9f));
 	Amb->RegisterComponent();
 
