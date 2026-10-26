@@ -42,6 +42,12 @@ namespace
 		TMap<FString, UTexture2D*> Frames;
 	};
 	FPZ& PZ() { static FPZ X; return X; }
+	// Lit, masked, two-sided paper material (/Game/Hollow/Materials/M_HollowPaper): Tex x Color, alpha cut-out.
+	UMaterialInterface* PaperMat(UMaterialInterface* Fallback)
+	{
+		static UMaterialInterface* M = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Hollow/Materials/M_HollowPaper.M_HollowPaper"));
+		return M ? M : Fallback;
+	}
 	FString Dir() { return FPaths::Combine(FPaths::ProjectDir(), TEXT("ExternalAssets/PZ")); }
 
 	bool LoadPZ()
@@ -142,9 +148,9 @@ void AHollowGameMode::PZQuad(AActor* A, const FString& Sprite, const FVector P[4
 	TArray<FVector2D> U = { Uv[0] / FVector2D(128, 256), Uv[1] / FVector2D(128, 256), Uv[2] / FVector2D(128, 256), Uv[3] / FVector2D(128, 256) };
 	TArray<int32> Tri = { 0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2 };   // both faces
 	M->CreateMeshSection(0, V, Tri, {}, U, {}, {}, false);
-	UMaterialInstanceDynamic* Mi = UMaterialInstanceDynamic::Create(SpriteMat, A);
+	UMaterialInstanceDynamic* Mi = UMaterialInstanceDynamic::Create(PaperMat(SpriteMat), A);
 	Mi->SetTextureParameterValue(TEXT("Tex"), T);
-	Mi->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.55f, 0.53f, 0.6f, 1.f));
+	Mi->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.9f, 0.88f, 0.95f, 1.f));
 	M->SetMaterial(0, Mi);
 }
 
@@ -206,9 +212,9 @@ void AHollowGameMode::BuildPZCottage(const FVector& Center, int32 Seed)
 		if (!T) return;
 		const FVector At = Corner(x + 0.5f, y + 0.5f);
 		AActor* Ob = Local(HollowArt::NewActor(W, At));
-		UMaterialInstanceDynamic* Mi = UMaterialInstanceDynamic::Create(SpriteMat, Ob);
+		UMaterialInstanceDynamic* Mi = UMaterialInstanceDynamic::Create(PaperMat(SpriteMat), Ob);
 		Mi->SetTextureParameterValue(TEXT("Tex"), T);
-		Mi->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.6f, 0.58f, 0.64f, 1.f));
+		Mi->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.95f, 0.93f, 1.f, 1.f));
 		UMaterialBillboardComponent* B = NewObject<UMaterialBillboardComponent>(Ob);
 		B->SetupAttachment(Ob->GetRootComponent());
 		B->AddElement(Mi, nullptr, false, Sq * 0.75f, Sq * 1.5f, nullptr);
@@ -291,7 +297,7 @@ void AHollowGameMode::BuildPZLot(const FVector& Center, int32 Seed)
 		if (UMaterialInstanceDynamic** M = Mats.Find(S)) return *M;
 		UTexture2D* T = Frame(S);
 		if (!T) return nullptr;
-		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(SpriteMat, Ground);
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(PaperMat(SpriteMat), Ground);
 		M->SetTextureParameterValue(TEXT("Tex"), T);
 		M->SetVectorParameterValue(TEXT("Color"), FLinearColor(Shade, Shade * 0.97f, Shade * 1.05f, 1.f));
 		Mats.Add(S, M);
@@ -304,7 +310,7 @@ void AHollowGameMode::BuildPZLot(const FVector& Center, int32 Seed)
 	const FVector2D WUv[4] = { { 64, 192 }, { 0, 224 }, { 0, 32 }, { 64, 0 } };
 	auto Face = [&](const FString& S, const FVector P[4], const FVector2D Uv[4], bool bSolid, bool bNorth, float Lift)
 	{
-		UMaterialInstanceDynamic* M = Mat(S, 0.55f);
+		UMaterialInstanceDynamic* M = Mat(S, 0.9f);
 		if (!M) return;
 		UProceduralMeshComponent* Pm = NewObject<UProceduralMeshComponent>(Walls);
 		Pm->SetupAttachment(Walls->GetRootComponent());
@@ -369,7 +375,7 @@ void AHollowGameMode::BuildPZLot(const FVector& Center, int32 Seed)
 			if (Has(T, TEXT("doorN")) || Has(T, TEXT("attachedN")) || (bWindow && Facing == TEXT("N"))) { Face(T, Pn, NUv, false, true, 2.f); continue; }
 			if (Has(T, TEXT("doorW")) || Has(T, TEXT("attachedW")) || (bWindow && Facing == TEXT("W"))) { Face(T, Pw, WUv, false, false, 2.f); continue; }
 			// everything else stands on its square as a paper card
-			UMaterialInstanceDynamic* M = Mat(T, 0.6f);
+			UMaterialInstanceDynamic* M = Mat(T, 0.95f);
 			if (!M || Objects > 450) continue;
 			AActor* Ob = Local(HollowArt::NewActor(W, Mid));
 			LotActors.Add(Ob);
@@ -398,7 +404,7 @@ void AHollowGameMode::BuildPZLot(const FVector& Center, int32 Seed)
 	for (auto& F : Floors)
 	{
 		Gm->CreateMeshSection(Sec, F.Value.V, F.Value.T, {}, F.Value.U, {}, {}, false);
-		Gm->SetMaterial(Sec++, Mat(F.Key, 0.5f));
+		Gm->SetMaterial(Sec++, Mat(F.Key, 0.85f));
 	}
 	FString Src;
 	Lot->TryGetStringField(TEXT("source"), Src);

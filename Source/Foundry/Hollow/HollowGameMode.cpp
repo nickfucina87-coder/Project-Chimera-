@@ -751,6 +751,7 @@ void AHollowGameMode::BuildLocal(const FIntPoint& Where)
 	const ETerr T = H.T;
 	auto Reject = [&](const FVector& P)
 	{
+		for (const FBox2D& Lb : LotBounds) if (Lb.ExpandBy(60.f).IsInside(FVector2D(P))) return true;
 		const FVector Rl = P - O;
 		if (FMath::Abs(Rl.Y) < 200.f && FMath::Abs(Rl.X) > 500.f) return true;           // main road strip
 		if (T == ETerr::Town) return Rl.Size2D() < 1560.f;
@@ -1139,7 +1140,21 @@ void AHollowGameMode::BuildWild(const FHollowHex& Hex)
 	}
 
 	// an abandoned cottage on some wild hexes (stand-in Project Zomboid tiles until our own tiles exist)
-	if (Rng.FRand() < 0.6f) { FVector Cot; if (Pick(300.f, 900.f, 900.f, Cot)) BuildPZLot(Cot, Rng.RandRange(0, 99999)); }
+	if (Rng.FRand() < 0.6f)
+	{
+		FVector Cot;
+		if (Pick(200.f, 1100.f, 600.f, Cot) || Pick(0.f, 1300.f, 400.f, Cot))
+		{
+			BuildPZLot(Cot, Rng.RandRange(0, 99999));
+			// keep trees, rocks and props off the whole footprint, not just the circle we picked
+			if (LotBounds.Num())
+			{
+				const FBox2D B = LotBounds.Last();
+				for (float X = B.Min.X; X <= B.Max.X; X += 400.f)
+					for (float Y = B.Min.Y; Y <= B.Max.Y; Y += 400.f) Blocks.Add({ FVector(X, Y, 0.f), 320.f });
+			}
+		}
+	}
 
 	// tool-gated spots: what you carry decides what you can do here
 	BuildFeatures(Hexes.FindChecked(FIntPoint(Hex.Q, Hex.R)), [&](float MinR, float MaxR, float R, FVector& Out) { return Pick(MinR, MaxR, R, Out); });

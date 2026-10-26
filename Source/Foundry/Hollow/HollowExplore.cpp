@@ -431,11 +431,13 @@ namespace
 	}
 	UMaterialBillboardComponent* Paper(AActor* A, UMaterialInterface* Base, const FString& Rel, float Height)
 	{
+		static UMaterialInterface* Lit = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Hollow/Materials/M_HollowPaper.M_HollowPaper"));
+		if (Lit) Base = Lit;
 		UTexture2D* T = ArtTex(Rel);
 		if (!A || !Base || !T) return nullptr;
 		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, A);
 		M->SetTextureParameterValue(TEXT("Tex"), T);
-		M->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.62f, 0.6f, 0.66f, 1.f));   // sits in the night instead of glowing
+		M->SetVectorParameterValue(TEXT("Color"), FLinearColor(0.95f, 0.93f, 1.f, 1.f));   // lit by the scene, so full colour
 		UMaterialBillboardComponent* B = NewObject<UMaterialBillboardComponent>(A);
 		B->SetupAttachment(A->GetRootComponent());
 		const float W = Height * T->GetSizeX() / FMath::Max(1, T->GetSizeY());
