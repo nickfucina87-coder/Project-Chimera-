@@ -102,7 +102,8 @@ FString BestSkill(const FPC& PC, const TArray<FString>& Skills)
 int32 XpForLevel(int32 Level)
 {
 	static const int32 T[] = { 0, 60, 150, 280, 450, 650 };
-	return T[FMath::Clamp(Level - 1, 0, 5)];
+	if (Level <= 6) return T[FMath::Clamp(Level - 1, 0, 5)];
+	return 650 + (Level - 6) * 250;   // past level 6 every level costs a steady 250
 }
 
 const TArray<FAncestry>& Ancestries()
@@ -190,7 +191,13 @@ FPC BuildPC(const FString& Name, const FString& AncId, const FString& KitId)
 	P.HpPer = K->Hp + P.Abil[TEXT("con")];
 	P.HpMax = A->Hp + P.HpPer;
 	P.Hp = P.HpMax;
-	P.Gold = 20; P.Rations = 6; P.Potions = 1; P.Holy = 0;
+	P.Gold = 20;
+	P.Inv.Init();
+	P.Inv.Add(TEXT("ration"), 6);
+	P.Inv.Add(TEXT("potion"), 1);
+	P.Inv.Add(TEXT("torch"), 2);
+	// one starting tool per kit, so each class explores a little differently
+	P.Inv.Add(K->Id == TEXT("rogue") ? TEXT("picks") : K->Id == TEXT("fighter") ? TEXT("rope") : K->Id == TEXT("cleric") ? TEXT("holy") : TEXT("tinderbox"), 1);
 	P.Deck = HollowData::StarterDeck(K->Id);
 
 	static const TMap<FString, FLinearColor> Skins = {

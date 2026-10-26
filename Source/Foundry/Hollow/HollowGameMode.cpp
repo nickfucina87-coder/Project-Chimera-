@@ -27,7 +27,7 @@ const FVector AHollowGameMode::ArenaOrigin(0.f, 80000.f, 0.f);
 AHollowGameMode::AHollowGameMode()
 {
 	PrimaryActorTick.bCanEverTick = true;
-	PrimaryActorTick.bTickEvenWhenPaused = false;
+	PrimaryActorTick.bTickEvenWhenPaused = true;   // the pause screen keeps the UI alive
 	DefaultPawnClass = nullptr;
 	PlayerControllerClass = AHollowPlayerController::StaticClass();
 }
@@ -109,6 +109,19 @@ void AHollowGameMode::Tick(float Dt)
 		}
 	}
 
+	if (bPaused)
+	{
+		if (bUIDirty && UI.IsValid()) { bUIDirty = false; UI->Rebuild(); }
+		return;
+	}
+	if (Day != BuffDay)
+	{
+		BuffDay = Day;
+		const int32 Before = Buffs.Num();
+		Buffs.RemoveAll([](const FBuff& B) { return B.Fights == 0; });
+		if (Buffs.Num() != Before) { RefreshAura(); MarkUI(); }
+	}
+
 	if (Beats.Num())
 	{
 		BeatClock -= Dt;
@@ -149,10 +162,25 @@ void AHollowGameMode::Tick(float Dt)
 	}
 
 	UpdatePrompt();
+	TickVisibility(Dt);
 	TickFx(Dt);
 	TickAmbience(Dt);
 	TickFow(Dt);
 	TickTitle(Dt);
+
+	// buff aura: three motes circling the hero, bobbing out of step
+	if (AuraRing && AuraRing->IsVisible())
+	{
+		AuraClock += Dt;
+		for (int32 i = 0; i < AuraOrbs.Num(); ++i)
+			if (UStaticMeshComponent* O = AuraOrbs[i])
+			{
+				const float A = AuraClock * 1.6f + i * 2.094f;
+				O->SetRelativeLocation(FVector(FMath::Cos(A) * 70.f, FMath::Sin(A) * 70.f, -20.f + FMath::Sin(AuraClock * 2.3f + i) * 30.f));
+			}
+		const float Pulse = 1.f + FMath::Sin(AuraClock * 3.f) * 0.06f;
+		AuraRing->SetRelativeScale3D(FVector(1.5f * Pulse, 1.5f * Pulse, 0.02f));
+	}
 
 	// Hide whatever stands between the top-down camera and the hero (houses, crypts, trees), restore it when clear.
 	{
@@ -184,7 +212,7 @@ void AHollowGameMode::Tick(float Dt)
 
 bool AHollowGameMode::CanWalk() const
 {
-	return Mode == EHollowMode::Explore && !Event.IsSet() && !Note.IsSet() && !Talk.IsSet() && !Reward.IsSet() && !bSheetOpen && !bDeckOpen;
+	return Mode == EHollowMode::Explore && !Event.IsSet() && !Note.IsSet() && !Talk.IsSet() && !Reward.IsSet() && !Trade.IsSet() && !LevelUp.IsSet() && !bPaused;
 }
 
 void AHollowGameMode::Toast(const FString& S)
@@ -210,7 +238,7 @@ void AHollowGameMode::GainXp(int32 Xp)
 {
 	if (Xp <= 0) return;
 	PC.Xp += Xp;
-	while (PC.Level < 5 && PC.Xp >= XpForLevel(PC.Level + 1))
+	while (PC.Level < 20 && PC.Xp >= XpForLevel(PC.Level + 1))
 	{
 		PC.Level++;
 		PC.HpMax += PC.HpPer;
@@ -218,6 +246,7 @@ void AHollowGameMode::GainXp(int32 Xp)
 		Toast(FString::Printf(TEXT("Level up! %s is now level %d."), *PC.Name, PC.Level));
 		PlaySfx(TEXT("levelup"), 0.8f);
 		Log(FString::Printf(TEXT("Reached level %d."), PC.Level));
+		OnLevelUp();
 	}
 }
 
@@ -226,7 +255,7 @@ void AHollowGameMode::GainXp(int32 Xp)
 void AHollowGameMode::BeginAdventure()
 {
 	if (Mode != EHollowMode::Create) return;
-	PC = BuildPC(CreateName.TrimStartAndEnd(), CreateAnc, CreateKit);
+	if (!bImported) PC = BuildPC(CreateName.TrimStartAndEnd(), CreateAnc, CreateKit);
 	Mode = EHollowMode::Explore;
 	SpawnHero(LocalOrigin + FVector(-1700.f, 0.f, 150.f));
 	Log(FString::Printf(TEXT("%s the %s %s arrives in Brindlemark."), *PC.Name, *PC.Ancestry, *PC.ClassName));
@@ -257,6 +286,7 @@ void AHollowGameMode::SpawnHero(const FVector& At)
 	Hero->SetLook(PC);
 	if (Hero->Boom && Hero->Boom->TargetArmLength < 2400.f) Hero->ZoomBy(500.f);
 	SetViewTo(Hero, 0.6f);
+	RefreshAura();
 }
 
 void AHollowGameMode::ClickWorld(const FHitResult& Hit)
@@ -303,7 +333,13 @@ void AHollowGameMode::UpdatePrompt()
 			const float D = FVector::Dist2D(Hero->GetActorLocation(), I.Loc);
 			if (D <= I.Radius && D < Best) { Best = D; NearIdx = i; }
 		}
-		if (NearIdx != INDEX_NONE) NewPrompt = FString::Printf(TEXT("[E]  %s"), *Interactables[NearIdx].Label);
+		if (NearIdx != INDEX_NONE) NewPrompt = FString::Printf(TEXT("[E]  %s"), Interactables[NearIdx].Kind == TEXT("feature") ? *FeatureLabel(Interactables[NearIdx]) : *Interactables[NearIdx].Label);
+		// walking right into a scouted trail takes it, no key needed
+		if (NearIdx != INDEX_NONE && Interactables[NearIdx].Kind == TEXT("edge") && Best < 150.f)
+		{
+			const FHollowHex* N = Hexes.Find(SideHex(Interactables[NearIdx].Index));
+			if (N && N->IsOpen()) { const int32 Side = Interactables[NearIdx].Index; Prompt = FString(); EdgeTravel(Side); return; }
+		}
 	}
 	Prompt = NewPrompt;
 }
@@ -311,6 +347,7 @@ void AHollowGameMode::UpdatePrompt()
 void AHollowGameMode::Interact()
 {
 	if (Note.IsSet()) { CloseNote(); return; }
+	if (Talk.IsSet() && TalkRevealing()) { SkipReveal(); return; }
 	if (Event.IsSet())
 	{
 		if (Event->Choice >= 0) CloseEvent();
@@ -325,6 +362,8 @@ void AHollowGameMode::Interact()
 		if (const TPair<FString, FString>* L = HollowData::Lore().Find(I.Id)) { FNoteView Nv; Nv.Title = L->Key; Nv.Text = L->Value; Note = Nv; PlaySfx(TEXT("book"), 0.7f); }
 	}
 	else if (I.Kind == TEXT("exit")) ToggleMap();
+	else if (I.Kind == TEXT("feature")) UseFeature(I);
+	else if (I.Kind == TEXT("edge")) EdgeTravel(I.Index);
 	else if (I.Kind == TEXT("event"))
 	{
 		if (FHollowHex* H = Hexes.Find(Pos))
@@ -340,9 +379,11 @@ void AHollowGameMode::Interact()
 		if (H.ChestTaken.IsValidIndex(I.Index)) H.ChestTaken[I.Index] = true;
 		const int32 G = D(10) + 4;
 		PC.Gold += G;
+		if (FMath::FRand() < 0.15f) { Give(TEXT("trinket"), 1); }
 		FString Msg = FString::Printf(TEXT("You find %d silver"), G);
-		if (FMath::FRand() < 0.3f) { PC.Potions++; Msg += TEXT(" and a healing potion"); }
-		else if (FMath::FRand() < 0.4f) { PC.Rations += 2; Msg += TEXT(" and 2 rations"); }
+		if (FMath::FRand() < 0.3f) { Give(TEXT("potion"), 1); Msg += TEXT(" and a healing potion"); }
+		else if (FMath::FRand() < 0.4f) { Give(TEXT("ration"), 2); Msg += TEXT(" and 2 rations"); }
+		else if (FMath::FRand() < 0.3f) { Give(TEXT("torch"), 1); Msg += TEXT(" and a torch"); }
 		Toast(Msg + TEXT("."));
 		Log(Msg + TEXT("."));
 		PlaySfx(TEXT("coins"));
@@ -373,12 +414,16 @@ void AHollowGameMode::ToggleMap()
 
 void AHollowGameMode::Escape()
 {
-	if (Reward.IsSet() || (Event.IsSet() && Event->Choice < 0)) return;
+	if (bPaused) { SetPaused(false); return; }
+	if (LevelUp.IsSet() || Reward.IsSet() || (Event.IsSet() && Event->Choice < 0)) return;
 	if (Note.IsSet()) CloseNote();
+	else if (Trade.IsSet()) CloseTrade();
+	else if (Talk.IsSet() && Talk->bLog) ToggleTalkLog();
+	else if (Talk.IsSet() && Talk->bTyping) { Talk->bTyping = false; MarkUI(); }
 	else if (Event.IsSet()) CloseEvent();
 	else if (Talk.IsSet()) CloseTalk();
-	else if (bSheetOpen || bDeckOpen) { bSheetOpen = bDeckOpen = false; MarkUI(); }
 	else if (Mode == EHollowMode::Map) ToggleMap();
+	else if (Mode == EHollowMode::Explore || Mode == EHollowMode::Combat) TogglePause(EPauseTab::System);
 }
 
 void AHollowGameMode::Die(const FString& Why)
@@ -449,14 +494,16 @@ void AHollowGameMode::ApplyOutcome(const FOutcome& O, FEventView& V)
 		V.Chips.Add({ FString::Printf(TEXT("-%d HP"), Dm), false });
 	}
 	if (O.Gold) { PC.Gold = FMath::Max(0, PC.Gold + O.Gold); V.Chips.Add({ FString::Printf(TEXT("%s silver"), *Sgn(O.Gold)), O.Gold > 0 }); }
-	if (O.Rations) { PC.Rations = FMath::Max(0, PC.Rations + O.Rations); V.Chips.Add({ FString::Printf(TEXT("%s rations"), *Sgn(O.Rations)), O.Rations > 0 }); }
-	if (O.Potions) { PC.Potions += O.Potions; V.Chips.Add({ FString::Printf(TEXT("+%d potion"), O.Potions), true }); }
-	if (O.Holy) { PC.Holy += O.Holy; V.Chips.Add({ FString::Printf(TEXT("+%d holy water"), O.Holy), true }); }
+	if (O.Rations) { if (O.Rations > 0) Give(TEXT("ration"), O.Rations); else PC.Inv.Take(TEXT("ration"), FMath::Min(-O.Rations, PC.Count(TEXT("ration")))); V.Chips.Add({ FString::Printf(TEXT("%s rations"), *Sgn(O.Rations)), O.Rations > 0 }); }
+	if (O.Potions) { Give(TEXT("potion"), O.Potions); V.Chips.Add({ FString::Printf(TEXT("+%d potion"), O.Potions), true }); }
+	if (O.Holy) { Give(TEXT("holy"), O.Holy); V.Chips.Add({ FString::Printf(TEXT("+%d holy water"), O.Holy), true }); }
 	if (O.Heal == TEXT("full")) { V.Chips.Add({ FString::Printf(TEXT("+%d HP"), PC.HpMax - PC.Hp), true }); PC.Hp = PC.HpMax; }
 	else if (O.Heal == TEXT("half")) { const int32 Hh = FMath::Min(PC.HpMax - PC.Hp, PC.HpMax / 2); PC.Hp += Hh; V.Chips.Add({ FString::Printf(TEXT("+%d HP"), Hh), true }); }
 	if (O.Xp) { GainXp(O.Xp); V.Chips.Add({ FString::Printf(TEXT("+%d XP"), O.Xp), true }); }
 	if (!O.Combat.IsEmpty()) { V.PendingCombat = O.Combat; V.bAmbush = O.bAmbush; V.bWeaken = O.bWeaken; }
 	if (O.bNoClear) V.bClears = false;
+	// shrine-style outcomes leave a blessing that carries into the next fight
+	if (O.bSlots) { AddBuff(TEXT("blessed"), TEXT("Dawn's Blessing"), TEXT("+1 to attack rolls for the first 3 turns of your next fight."), FLinearColor(1.f, 0.82f, 0.4f), 1); V.Chips.Add({ TEXT("Blessed"), true }); }
 }
 
 void AHollowGameMode::CloseEvent()
@@ -469,7 +516,10 @@ void AHollowGameMode::CloseEvent()
 	if (PC.Hp <= 0) { Die(TEXT("The wilds were too much.")); return; }
 	if (!V.PendingCombat.IsEmpty())
 	{
-		StartCombat(V.PendingCombat, V.bAmbush, V.bWeaken);
+		// slipping up unseen turns any fight into your ambush; being spotted first takes the edge away
+		const bool bSneak = !bNoticed && (HeroVis == EVis::Unseen || HeroVis == EVis::Hidden);
+		if (bSneak && !V.bAmbush) Log(TEXT("They never saw you coming."));
+		StartCombat(V.PendingCombat, V.bAmbush || bSneak, V.bWeaken);
 		if (Combat.IsSet()) Combat->bFromEvent = V.bHexEvent && V.bClears;
 	}
 	else if (V.bHexEvent && V.bClears) ResolveEventDone();
@@ -518,8 +568,8 @@ void AHollowGameMode::OpenTalk(const FString& NpcId)
 	if (!N) return;
 	FTalkView T;
 	T.NpcId = NpcId;
-	T.Line = N->Greeting;
 	Talk = T;
+	SetTalkLine(N->Greeting);
 	LearnTopics(N->Greeting);
 	MarkUI();
 }
@@ -539,14 +589,15 @@ void AHollowGameMode::AskTopic(const FString& TopicId)
 	Talk->Asked = T ? T->Label : TopicId;
 	Talk->LeadNote.Reset();
 	if (N->Replies.Contains(TopicId)) Reply(*N, TopicId);
-	else Talk->Line = N->Unknown;
+	else SetTalkLine(N->Unknown);
+	Talk->History.Add({ Talk->Asked, Talk->Line });
 	MarkUI();
 }
 
 void AHollowGameMode::Reply(const FNpcDef& Npc, const FString& TopicId, bool bSetLine)
 {
 	const FNpcReply& Rp = Npc.Replies.FindChecked(TopicId);
-	if (bSetLine) Talk->Line = Rp.Text;
+	if (bSetLine) SetTalkLine(Rp.Text);
 	KnownTopics.Add(TopicId);
 	LearnTopics(Rp.Text);
 	const FString OnceKey = Npc.Id + TEXT(":") + TopicId;
@@ -554,8 +605,8 @@ void AHollowGameMode::Reply(const FNpcDef& Npc, const FString& TopicId, bool bSe
 	{
 		GrantedOnce.Add(OnceKey);
 		if (Rp.Gold) { PC.Gold += Rp.Gold; Toast(FString::Printf(TEXT("+%d silver"), Rp.Gold)); }
-		if (Rp.Rations) { PC.Rations += Rp.Rations; Toast(FString::Printf(TEXT("+%d rations"), Rp.Rations)); }
-		if (Rp.Holy) { PC.Holy += Rp.Holy; Toast(TEXT("Received a flask of holy water.")); }
+		if (Rp.Rations) { Give(TEXT("ration"), Rp.Rations); Toast(FString::Printf(TEXT("+%d rations"), Rp.Rations)); }
+		if (Rp.Holy) { Give(TEXT("holy"), Rp.Holy); Toast(TEXT("Received a flask of holy water.")); }
 	}
 	if (!Rp.Lead.IsEmpty() && !LeadsGiven.Contains(Rp.Lead))
 	{
@@ -570,14 +621,14 @@ void AHollowGameMode::Service(const FString& What)
 	auto Pay = [&](int32 Cost) { if (PC.Gold < Cost) { Toast(TEXT("Not enough silver.")); return false; } PC.Gold -= Cost; return true; };
 	if (What == TEXT("rest") && Pay(5))
 	{
-		PC.Hp = PC.HpMax; Day++;
+		PC.Hp = PC.HpMax; Day++; Rest();
 		Toast(TEXT("You sleep like the dead. HP fully restored."));
 		Log(TEXT("Rested at the Sleeping Lantern."));
 	}
-	else if (What == TEXT("holy") && Pay(10)) { PC.Holy++; Toast(TEXT("+1 holy water")); }
+	else if (What == TEXT("holy") && Pay(10)) { Give(TEXT("holy"), 1); Toast(TEXT("+1 holy water")); }
 	else if (What == TEXT("prayer") && Pay(6)) { const int32 H = FMath::Min(PC.HpMax - PC.Hp, R(TEXT("2d8+5"))); PC.Hp += H; Toast(FString::Printf(TEXT("The Dawn mends you: +%d HP"), H)); }
-	else if (What == TEXT("potion") && Pay(8)) { PC.Potions++; Toast(TEXT("+1 healing potion")); }
-	else if (What == TEXT("ration") && Pay(2)) { PC.Rations++; Toast(TEXT("+1 ration")); }
+	else if (What == TEXT("potion") && Pay(8)) { Give(TEXT("potion"), 1); Toast(TEXT("+1 healing potion")); }
+	else if (What == TEXT("ration") && Pay(2)) { Give(TEXT("ration"), 1); Toast(TEXT("+1 ration")); }
 	else if (What == TEXT("pack") && Pay(12))
 	{
 		FRewardView Rv;
@@ -617,6 +668,10 @@ void AHollowGameMode::AddInteract(AActor* A, const FString& Kind, const FString&
 
 void AHollowGameMode::ClearLocal()
 {
+	FeatureGlows.Reset();
+	WatcherActors.Reset();
+	bNoticed = false;
+	NoticeClock = 0.f;
 	for (AActor* A : LocalActors) if (IsValid(A)) A->Destroy();
 	LocalActors.Reset();
 	Fow.Reset();
@@ -634,7 +689,14 @@ void AHollowGameMode::EnterHex(const FIntPoint& Where, bool bTravel)
 	ClearLocal();
 	BuildLocal(Where);
 	Mode = EHollowMode::Explore;
-	SpawnHero(LocalOrigin + FVector(-1700.f, 0.f, 150.f));
+	FVector Spawn = LocalOrigin + FVector(-1700.f, 0.f, 150.f);
+	if (ArriveSide >= 0)
+	{
+		const float Yaw = FMath::DegreesToRadians(60.f * ArriveSide);
+		Spawn = LocalOrigin + FVector(FMath::Cos(Yaw), FMath::Sin(Yaw), 0.f) * LocalRadius * 0.866f * 0.66f + FVector(0, 0, 150.f);
+		ArriveSide = -1;
+	}
+	SpawnHero(Spawn);
 	Log(FString::Printf(TEXT("Entered %s."), *TerrInfo(H.T).Name));
 	PlayMusic(H.T == ETerr::Town ? TEXT("dark_cavern_ambient_002") : TEXT("horror_atmosphere_loop"), H.T == ETerr::Town ? 0.45f : 0.35f);
 	if (bTravel && bFirst && H.T != ETerr::Town && H.T != ETerr::Keep && H.T != ETerr::Shrine && FMath::FRand() < 0.22f)
@@ -658,6 +720,7 @@ void AHollowGameMode::BuildLocal(const FIntPoint& Where)
 	case ETerr::Keep: BuildKeepArea(); break;
 	default: BuildWild(H); break;
 	}
+	BuildEdges();
 	BuildFow(Hexes.FindChecked(Where));
 
 	// real grass and shrubs from the local Fab packs (skipped silently if they are not installed)
@@ -700,7 +763,11 @@ void AHollowGameMode::BuildRim(const FHollowHex& Hex, FRandomStream& Rng)
 		for (int32 k = 0; k < Steps; ++k)
 		{
 			const FVector P = FMath::Lerp(C0, C1, (k + 0.5f) / Steps) * Rng.FRandRange(0.88f, 0.96f);
-			if (FVector::Dist2D(P, FVector(-Apothem, 0, 0)) < 520.f || FVector::Dist2D(P, FVector(Apothem, 0, 0)) < 520.f) continue;
+			// leave a gap wherever a trail leads out (and the old north/south road gaps in town)
+			bool bGap = Hex.T == ETerr::Town && (FVector::Dist2D(P, FVector(-Apothem, 0, 0)) < 520.f || FVector::Dist2D(P, FVector(Apothem, 0, 0)) < 520.f);
+			for (int32 s = 0; s < 6 && !bGap; ++s)
+				if (SideOpen(s)) bGap = FVector::Dist2D(P, FVector(FMath::Cos(FMath::DegreesToRadians(60.f * s)), FMath::Sin(FMath::DegreesToRadians(60.f * s)), 0) * Apothem) < 560.f;
+			if (bGap) continue;
 			Local(HollowArt::Boulders(W, LocalOrigin + P, Rng.FRandRange(0.8f, 1.3f), Rng.RandRange(0, 99999)));
 			if (Count++ % 2 == 0) Local(HollowArt::FogBank(W, LocalOrigin + P * 1.02f + FVector(0, 0, 40), Rng.FRandRange(600.f, 900.f), Hex.T == ETerr::Swamp ? 0.5f : 0.3f, FogCol));
 		}
@@ -888,6 +955,7 @@ void AHollowGameMode::BuildPoi(const FHollowHex& Hex, const FVector& At)
 	{
 		AActor* A = Local(HollowArt::NewActor(W, L, Yaw));
 		HollowArt::Foe(A, nullptr, FoeId, FVector::ZeroVector);
+		WatcherActors.Add(A);
 		return A;
 	};
 	if (Id == TEXT("snare") || Id == TEXT("ridge")) { FoeProp(TEXT("wolf"), At + FVector(150, 80, 0), 200.f); Local(HollowArt::Rock(W, At + FVector(300, -200, 0), 1.4f, 30.f)); }
@@ -1046,6 +1114,9 @@ void AHollowGameMode::BuildWild(const FHollowHex& Hex)
 		AActor* Bn = Local(HollowArt::Bones(W, BonesAt, Rng.FRandRange(0.f, 360.f)));
 		AddInteract(Bn, TEXT("examine"), TEXT("bones"), TEXT("Examine the bones"), 0, 240.f);
 	}
+
+	// tool-gated spots: what you carry decides what you can do here
+	BuildFeatures(Hexes.FindChecked(FIntPoint(Hex.Q, Hex.R)), [&](float MinR, float MaxR, float R, FVector& Out) { return Pick(MinR, MaxR, R, Out); });
 
 	// loot caches
 	for (int32 i = 0; i < Hex.ChestTaken.Num(); ++i)

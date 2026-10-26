@@ -9,6 +9,7 @@
 #include "HollowArt.h"
 #include "HollowHero.h"
 #include "HollowRules.h"
+#include "HollowLibrary.h"
 
 using namespace HollowRules;
 using HollowArt::EShape;
@@ -125,7 +126,7 @@ void AHollowGameMode::StartCombat(const FString& FoeIds, bool bAmbush, bool bWea
 		F.Ctb = F.Delay() * (1.f - FMath::Clamp(Init, 0, 32) / 40.f);
 		if (bAmbush && i == 0) F.Ctb = 0.f;
 	}
-	C.Draw = PC.Deck;
+	C.Draw = PC.Deck.FilterByPredicate([this](const FString& Id) { return !SpentCards.Contains(Id); });
 	for (int32 i = C.Draw.Num() - 1; i > 0; --i) C.Draw.Swap(i, FMath::RandRange(0, i));
 	C.Target = 1;
 	Combat = C;
@@ -135,6 +136,8 @@ void AHollowGameMode::StartCombat(const FString& FoeIds, bool bAmbush, bool bWea
 	BuildArena();
 	SetViewTo(ArenaCam, 0.8f);
 	CLog(bAmbush ? TEXT("Ambush! You strike before they can react.") : TEXT("Battle begins. Watch the turn order."));
+	if (HasBuff(TEXT("blessed"))) { Combat->BlessTurns = 3; CLog(TEXT("The Dawn's blessing is still on you: +1 to attack rolls for 3 turns.")); }
+	if (HasBuff(TEXT("resolve"))) { HealHero(5, TEXT("Fresh resolve")); }
 	Combat->bBusy = true;
 	Beat(1.4f, [this] { if (Combat.IsSet()) { Combat->bBusy = false; AdvanceTurn(); } });
 	PlayMusic(TEXT("horror_atmosphere_loop"), 0.6f);
@@ -425,8 +428,8 @@ void AHollowGameMode::CombatGuard()
 
 void AHollowGameMode::CombatPotion()
 {
-	if (PC.Potions <= 0 || !Spend(1)) return;
-	PC.Potions--;
+	if (!PC.Inv.Has(TEXT("potion")) || !Spend(1)) return;
+	PC.Inv.Take(TEXT("potion"));
 	HealHero(R(TEXT("2d8+4")), TEXT("Healing potion"));
 	if (Combat->Actions == 0) CombatEndTurn();
 	MarkUI();
@@ -434,8 +437,8 @@ void AHollowGameMode::CombatPotion()
 
 void AHollowGameMode::CombatHoly()
 {
-	if (PC.Holy <= 0 || !Spend(1)) return;
-	PC.Holy--;
+	if (!PC.Inv.Has(TEXT("holy")) || !Spend(1)) return;
+	PC.Inv.Take(TEXT("holy"));
 	const int32 T = Combat->Target;
 	FFighter& F = Combat->F[T];
 	Lunge(0, T);
@@ -492,7 +495,8 @@ void AHollowGameMode::PlayCard(int32 HandIndex)
 	FCombatState& C = Combat.GetValue();
 	C.Hand.RemoveAt(HandIndex);
 	if (C.HandSerial.IsValidIndex(HandIndex)) C.HandSerial.RemoveAt(HandIndex);
-	C.Discard.Add(Id);
+	if (Card->bExhaust) { SpentCards.Add(Id); CLog(FString::Printf(TEXT("%s is spent until you rest."), *Card->Name)); }
+	else C.Discard.Add(Id);
 	PlayedCard = Id;
 	PlayedAt = Now();
 	PlaySfx(TEXT("card"));
@@ -607,6 +611,7 @@ void AHollowGameMode::PlayCard(int32 HandIndex)
 	case ECardFx::SecondWind: HealHero(D(8) + 2 * PC.Level, TEXT("Second Wind")); break;
 	case ECardFx::Insight: DrawCards(2); CLog(TEXT("You read the fight and draw two cards.")); break;
 	case ECardFx::Riposte: C.bRiposte = true; CLog(TEXT("Riposte ready: misses against you will be punished.")); break;
+	case ECardFx::LibSpell: CastLibSpell(*Card, T); break;
 	}
 	if (Combat.IsSet() && !Combat->bOver && Combat->Actions == 0)
 	{
@@ -764,9 +769,17 @@ void AHollowGameMode::FinishCombat()
 	Mode = EHollowMode::Explore;
 	SetViewTo(Hero, 0.8f);
 	if (const FHollowHex* Here = Hexes.Find(Pos)) PlayMusic(Here->T == ETerr::Town ? TEXT("dark_cavern_ambient_002") : TEXT("horror_atmosphere_loop"), Here->T == ETerr::Town ? 0.45f : 0.35f);
+	// fight-limited buffs tick down; the "until the day ends" ones (Fights == 0) wait for the next day
+	for (FBuff& B : Buffs) if (B.Fights > 0 && --B.Fights == 0) B.Fights = -1;
+	Buffs.RemoveAll([](const FBuff& B) { return B.Fights < 0; });
+	RefreshAura();
 	if (C.bWon)
 	{
 		bool bBoss = false;
+		int32 Pelts = 0;
+		for (const FFighter& F : C.F) if (F.FoeId == TEXT("wolf") || F.FoeId == TEXT("alpha")) Pelts++;
+		if (Pelts && Give(TEXT("pelt"), Pelts)) Log(FString::Printf(TEXT("Skinned %d wolf pelt%s."), Pelts, Pelts > 1 ? TEXT("s") : TEXT("")));
+		if (FMath::FRand() < 0.2f) Give(TEXT("trinket"), 1, true);
 		for (const FFighter& F : C.F) if (F.bBoss) bBoss = true;
 		PC.Gold += C.GoldGain;
 		GainXp(C.XpGain);
@@ -821,4 +834,96 @@ void AHollowGameMode::FloatText(int32 Idx, const FString& Text, const FColor& Co
 	ArenaActors.Add(A);
 	FAnim Fa; Fa.A = A; Fa.From = At; Fa.To = At + FVector(0, 0, 140.f); Fa.Dur = 1.7f; Fa.Kind = 2;
 	Anims.Add(Fa);
+}
+
+/* ---------- Library spells ---------- */
+
+// Any pf2e spell from the rules library, resolved from its data: a basic save halves or doubles, a spell attack
+// rolls against AC, no defense means it simply lands. Areas hit every foe. Non-damaging saves leave a condition
+// picked from the spell's traits. The effect family (fire, lightning, impact, curse, blessing) follows damage type.
+void AHollowGameMode::CastLibSpell(const FCardDef& Card, int32 T)
+{
+	const FLibSpell* S = HollowLib::Spell(Card.Spell);
+	if (!S || !Combat.IsSet()) { CLog(TEXT("The words come out wrong.")); return; }
+	FCombatState& C = Combat.GetValue();
+	const FString Ty = S->Damage.Num() ? S->Damage[0].Value : FString();
+
+	auto Fx = [this, Ty, S](int32 Idx)
+	{
+		const FVector At = FighterPos(Idx);
+		if (Ty == TEXT("fire")) { NiagaraAt(TEXT("/Game/NiagaraExamples/FX_Misc/NS_Fire"), At - FVector(0, 0, 80), 0.6f); Burst(At, TEXT("fire_01"), FLinearColor(1.f, 0.45f, 0.15f), 18, 320.f, 0.8f, 60.f, 160.f); }
+		else if (Ty == TEXT("electricity")) { NiagaraAt(TEXT("/Game/NiagaraExamples/FX_Sparks/NS_Spark_Burst"), At, 1.f); Burst(At, TEXT("spark_05"), FLinearColor(0.8f, 0.85f, 1.f), 16, 420.f, 0.5f, 40.f, 80.f); }
+		else if (Ty == TEXT("cold")) Burst(At, TEXT("star_03"), FLinearColor(0.6f, 0.85f, 1.f), 20, 260.f, 1.f, 45.f, 60.f, 120.f);
+		else if (Ty == TEXT("mental") || Ty == TEXT("void")) { NiagaraAt(TEXT("/Game/NiagaraExamples/FX_Player/NS_Player_DeBuff_Looping"), At - FVector(0, 0, 80), 1.f); Burst(At, TEXT("twirl_03"), FLinearColor(0.6f, 0.3f, 0.9f), 14, 200.f, 1.f, 70.f, 60.f); }
+		else if (Ty == TEXT("vitality") || S->bHeal) { NiagaraAt(TEXT("/Game/NiagaraExamples/FX_Player/NS_Player_Buff_Looping"), At - FVector(0, 0, 80), 1.f); Burst(At, TEXT("light_02"), FLinearColor(1.f, 0.9f, 0.55f), 18, 220.f, 1.1f, 50.f, 220.f); }
+		else { NiagaraAt(TEXT("/Game/NiagaraExamples/FX_Weapons/Impacts/NS_Impact_Metal"), At, 1.f); Burst(At, TEXT("magic_02"), FLinearColor(0.55f, 0.6f, 1.f), 16, 300.f, 0.8f, 55.f, 100.f); }
+	};
+	auto Roll = [&]() { int32 Dm = 0; for (int32 k = 0; k < S->Damage.Num(); ++k) Dm += R(HollowLib::HeightenedFormula(*S, Card.Rank, k)); return Dm; };
+
+	// healing magic mends you (a 2-action Heal adds 8 per rank, as in the rules)
+	if (S->bHeal || (!S->Damage.Num() && S->Traits.Contains(TEXT("healing"))))
+	{
+		int32 H = S->Damage.Num() ? Roll() : HollowRules::D(8) * FMath::Max(1, Card.Rank);
+		if (S->Name == TEXT("Heal") && Card.Cost >= 2) H += 8 * FMath::Max(1, Card.Rank);
+		Fx(0);
+		HealHero(H, S->Name);
+		return;
+	}
+
+	TArray<int32> Targets;
+	if (!S->AreaType.IsEmpty()) { for (int32 i = 1; i < C.F.Num(); ++i) if (!C.F[i].bDead) Targets.Add(i); }
+	else if (C.F.IsValidIndex(T) && !C.F[T].bDead) Targets.Add(T);
+	if (!S->AreaType.IsEmpty()) CLog(FString::Printf(TEXT("%s fills a %d-foot %s."), *S->Name, S->AreaSize, *S->AreaType));
+	Lunge(0, Targets.Num() ? Targets[0] : 1);
+
+	for (int32 i : Targets)
+	{
+		if (!Combat.IsSet() || Combat->bOver) return;
+		FFighter& F = Combat->F[i];
+		if (F.bDead) continue;
+		int32 Dmg = S->Damage.Num() ? Roll() : 0;
+		bool bCrit = false;
+		// vitality only harms the undead; void only harms the living
+		if ((Ty == TEXT("vitality") && !F.bUndead) || (Ty == TEXT("void") && F.bUndead)) { CLog(FString::Printf(TEXT("%s shrugs off the %s energy."), *F.Name, *Ty)); continue; }
+		if (!S->Save.IsEmpty())
+		{
+			const int32 Mod = S->Save == TEXT("fortitude") ? F.Fort : S->Save == TEXT("reflex") ? F.Ref : F.Will;
+			const int32 Nat = HollowRules::D(20);
+			const int32 Deg = Degree(Nat + Mod, SpellDC(PC), Nat);
+			CLog(FString::Printf(TEXT("%s %s save %d vs DC %d: %s."), *F.Name, *SkillName(S->Save), Nat + Mod, SpellDC(PC), DegreeName(Deg)));
+			if (Dmg > 0) Dmg = Deg == 3 ? 0 : Deg == 2 ? (S->bBasic ? Dmg / 2 : 0) : Deg == 0 ? Dmg * 2 : Dmg;
+			bCrit = Deg == 0;
+			if (!S->Damage.Num() && Deg <= 1)
+			{
+				// a condition by the spell's nature
+				if (S->Traits.Contains(TEXT("fear")) || S->Traits.Contains(TEXT("emotion"))) { F.Frightened = FMath::Max(F.Frightened, Deg == 0 ? 2 : 1); FloatText(i, TEXT("frightened"), FColor(200, 160, 255)); }
+				else if (S->Name.Contains(TEXT("Slow")) || S->Traits.Contains(TEXT("incapacitation"))) { F.Ctb += F.Delay() * (Deg == 0 ? 1.f : 0.5f); FloatText(i, TEXT("slowed"), FColor(160, 200, 255)); }
+				else { F.OffGuardTurns = FMath::Max(F.OffGuardTurns, Deg == 0 ? 2 : 1); FloatText(i, TEXT("off-guard"), FColor(255, 220, 120)); }
+			}
+		}
+		else if (S->Vs == TEXT("ac"))
+		{
+			const int32 Nat = RollD20();
+			const int32 Mod = SpellAtk(PC) + (C.BlessTurns > 0 ? 1 : 0) - C.F[0].Frightened;
+			const int32 Dc = F.Ac - F.Frightened - (F.OffGuardTurns > 0 ? 2 : 0);
+			const int32 Deg = Degree(Nat + Mod, Dc, Nat);
+			CLog(FString::Printf(TEXT("%s: spell attack %d %s = %d vs AC %d. %s."), *S->Name, Nat, *Sgn(Mod), Nat + Mod, Dc, DegreeName(Deg)));
+			Dmg = Deg == 3 ? Dmg * 2 : Deg == 2 ? Dmg : 0;
+			bCrit = Deg == 3;
+		}
+		if (Dmg > 0) { Fx(i); HurtFoe(i, Dmg + (C.HymnTurns > 0 ? 2 : 0), bCrit); }
+		else if (S->Damage.Num()) FloatText(i, TEXT("resisted"), FColor(220, 220, 220));
+		else Fx(i);
+	}
+
+	// no damage and no save: a buff on yourself
+	if (!S->Damage.Num() && S->Save.IsEmpty() && Combat.IsSet())
+	{
+		Fx(0);
+		if (S->Name.Contains(TEXT("Shield"))) { Combat->F[0].GuardAc += 1; Combat->F[0].ShieldHp = 5 * FMath::Max(1, Card.Rank); CLog(TEXT("A shield of force: +1 AC and it soaks the next hit.")); }
+		else if (S->Traits.Contains(TEXT("fortune")) || S->Name.Contains(TEXT("Guidance"))) { Combat->bLucky = true; CLog(TEXT("Fortune favours your next roll.")); }
+		else if (S->Traits.Contains(TEXT("morale")) || S->Name.Contains(TEXT("Bless"))) { Combat->BlessTurns = 3; CLog(TEXT("+1 to attack rolls for 3 turns.")); }
+		else if (S->Traits.Contains(TEXT("illusion"))) { Combat->F[0].GuardAc += 2; CLog(TEXT("Your outline blurs: +2 AC until your next turn.")); }
+		else CLog(FString::Printf(TEXT("%s takes hold."), *S->Name));
+	}
 }

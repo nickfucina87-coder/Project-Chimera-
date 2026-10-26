@@ -1,4 +1,5 @@
 #include "HollowTypes.h"
+#include "HollowLibrary.h"
 
 namespace
 {
@@ -213,7 +214,10 @@ const TMap<FString, FFoeDef>& Foes()
 	return M;
 }
 
-const TMap<FString, FCardDef>& Cards()
+TMap<FString, FCardDef>& MutableCards();
+const TMap<FString, FCardDef>& Cards() { return MutableCards(); }
+
+TMap<FString, FCardDef>& MutableCards()
 {
 	auto C = [](const TCHAR* Id, const TCHAR* Name, const TCHAR* Kind, int32 Cost, ECardFx Fx, bool bTarget, const TCHAR* Text)
 	{
@@ -249,6 +253,30 @@ const TMap<FString, FCardDef>& Cards()
 		C(TEXT("riposte"), TEXT("Riposte"), TEXT("Aura"), 1, Riposte, false, TEXT("Until your next turn, any foe that misses you takes your weapon damage.")),
 	};
 	return M;
+}
+
+void RegisterCard(const FCardDef& Card) { MutableCards().Add(Card.Id, Card); }
+
+FString SpellCard(const FString& SpellName, int32 Rank)
+{
+	const FLibSpell* S = HollowLib::Spell(SpellName);
+	if (!S) return FString();
+	const int32 At = S->bCantrip ? Rank : FMath::Max(Rank, S->Rank);
+	const FString Id = FString::Printf(TEXT("spell:%s:%d"), *HollowLib::Slug(S->Name), At);
+	if (Cards().Contains(Id)) return Id;
+	FCardDef D;
+	D.Id = Id; D.Name = S->Name; D.Kind = TEXT("Spell"); D.Fx = ECardFx::LibSpell; D.Spell = S->Name; D.Rank = At;
+	D.Cost = S->Actions();
+	D.bExhaust = !S->bCantrip && !S->bFocus;
+	D.bNeedsTarget = S->AreaType.IsEmpty() && !S->bHeal;
+	const FString Sum = HollowLib::SpellSummary(*S, At);
+	D.Text = FString::Printf(TEXT("%s %d. %s"), S->bCantrip ? TEXT("Cantrip") : S->bFocus ? TEXT("Focus") : TEXT("Rank"), At, Sum.IsEmpty() ? *S->Text.Left(90) : *Sum);
+	// colour by what it does: healing gold, fire red, cold/water blue, mental/void violet, everything else arcane blue
+	const FString Ty = S->Damage.Num() ? S->Damage[0].Value : FString();
+	D.Col = S->bHeal ? Hex(TEXT("c9a227")) : Ty == TEXT("fire") ? Hex(TEXT("b8452f")) : Ty == TEXT("cold") ? Hex(TEXT("3f7fb8"))
+		: Ty == TEXT("electricity") ? Hex(TEXT("c5b21e")) : (Ty == TEXT("mental") || Ty == TEXT("void")) ? Hex(TEXT("6a3fa0")) : Ty == TEXT("vitality") ? Hex(TEXT("d8c27a")) : Hex(TEXT("4b55a8"));
+	RegisterCard(D);
+	return Id;
 }
 
 TArray<FString> StarterDeck(const FString& Kit)
@@ -318,6 +346,7 @@ const TArray<FNpcDef>& Npcs()
 	{
 		FNpcReply Rp; Rp.Text = Text; Rp.Lead = Lead; Rp.Gold = Gold; Rp.Rations = Rations; Rp.Holy = Holy; return Rp;
 	};
+	auto Opt = [](const TCHAR* Id, const TCHAR* Label, const TCHAR* Ok) { FTalkOption O; O.Id = Id; O.Label = Label; O.Ok = Ok; return O; };
 	static const TArray<FNpcDef> L = [&]
 	{
 		TArray<FNpcDef> Out;
@@ -335,6 +364,12 @@ const TArray<FNpcDef>& Npcs()
 			N.Replies.Add(TEXT("yourself"), R(TEXT("Thirty years on the gate. Knees gave out before my nerve did.")));
 			N.Replies.Add(TEXT("town"), R(TEXT("Brindlemark's all lanterns and stubbornness. We don't run.")));
 			N.Replies.Add(TEXT("work"), R(TEXT("Work? Clear the [wolves] off the ridge and the woodcutters will bless you. Or go poke the [barrow], if you want coin.")));
+			{ FTalkOption O = Opt(TEXT("pelts"), TEXT("I've brought wolf pelts for the bounty."), TEXT("Grey ridge wolves, all right. Five silver a pelt, as the board says. Keep them coming."));
+			  O.NeedItem = TEXT("pelt"); O.bGive = true; O.bGiveAll = true; O.Gold = 5; O.bOnce = false; N.Options.Add(O); }
+			{ FTalkOption O = Opt(TEXT("charm"), TEXT("I found this bone charm in a cave."), TEXT("That's Odo's. He never took it off. If it was in a cave, he's in the [barrow] country now. Here. For bringing it home."));
+			  O.NeedItem = TEXT("charm"); O.bGive = true; O.Gold = 20; O.Xp = 25; O.Lead = TEXT("barrow"); N.Options.Add(O); }
+			{ FTalkOption O = Opt(TEXT("rope"), TEXT("Lend me your old climbing rope, Captain."), TEXT("Ha. You've a gate-guard's nerve. Take it, the grapnel too. Bring it back or don't come back."));
+			  O.Skill = TEXT("intimidation"); O.DC = 15; O.Fail = TEXT("Ask me nicely, or ask Pip. That rope saw me up the north wall in the siege."); O.GiveItem = TEXT("rope"); N.Options.Add(O); }
 			Out.Add(N);
 		}
 		{
@@ -352,6 +387,11 @@ const TArray<FNpcDef>& Npcs()
 			N.Replies.Add(TEXT("yourself"), R(TEXT("Tobb. Third Tobb to run the Lantern. The first one built the bar, the second one broke it.")));
 			N.Replies.Add(TEXT("town"), R(TEXT("Best ale on the March. Only ale on the March, but still.")));
 			N.Replies.Add(TEXT("work"), R(TEXT("The pilgrims lose people on the road. Folks pay well for news of the [shrine].")));
+			{ FTalkOption O = Opt(TEXT("shovel"), TEXT("Your grandfather buried things, you said. Got his shovel?"), TEXT("The second Tobb buried half his debts in the hills. Take the shovel, and if you dig anything up, the first round's on you."));
+			  O.Skill = TEXT("diplomacy"); O.DC = 14; O.Fail = TEXT("That shovel stays with the family. Pip sells shovels, if you're set on grave-robbing."); O.GiveItem = TEXT("shovel"); N.Options.Add(O); }
+			{ FTalkOption O = Opt(TEXT("odo"), TEXT("What happened to Odo Tanner?"), TEXT("Walked out north-east, humming, a week back. Wore a bone charm on red thread. If you find that charm, Maren will want it."));
+			  O.Xp = 5; N.Options.Add(O); }
+			N.Stock = { TEXT("ration"), TEXT("torch"), TEXT("lantern") };
 			Out.Add(N);
 		}
 		{
@@ -366,6 +406,11 @@ const TArray<FNpcDef>& Npcs()
 			N.Replies.Add(TEXT("keep"), R(TEXT("Go with the Dawn, or don't go.")));
 			N.Replies.Add(TEXT("yourself"), R(TEXT("I came for a season. That was eleven years ago.")));
 			N.Replies.Add(TEXT("town"), R(TEXT("They're good people. Frightened people, which is not the same as weak.")));
+			{ FTalkOption O = Opt(TEXT("rite"), TEXT("Teach me the words of the unbinding."), TEXT("Then listen, and don't stumble. The Dawn hears the stumbles. Go, and carry its blessing with you."));
+			  O.Skill = TEXT("religion"); O.DC = 15; O.Fail = TEXT("Not yet. You'd say it like a shopping list. Come back when you've prayed at the [shrine]."); O.Xp = 20; N.Options.Add(O); }
+			{ FTalkOption O = Opt(TEXT("shard"), TEXT("I found a shard of violet glass."), TEXT("Give it here. Quickly. Don't look at it too long. The altar will keep it safe. Take this for your trouble, and say nothing."));
+			  O.NeedItem = TEXT("shard"); O.bGive = true; O.Gold = 25; O.Xp = 10; O.bOnce = false; N.Options.Add(O); }
+			N.Stock = { TEXT("holy"), TEXT("potion") };
 			Out.Add(N);
 		}
 		{
@@ -379,6 +424,11 @@ const TArray<FNpcDef>& Npcs()
 			N.Replies.Add(TEXT("yourself"), R(TEXT("Pip is Pip. Pip is a businessman.")));
 			N.Replies.Add(TEXT("bandits"), R(TEXT("Pip pays the toll. Pip is smart. Pip also sells them things. Ha!")));
 			N.Replies.Add(TEXT("town"), R(TEXT("Good town. Nobody here has eaten Pip. Yet.")));
+			{ FTalkOption O = Opt(TEXT("bag"), TEXT("That big sack you're sitting on. What's in it?"), TEXT("Nothing! Everything! It is a very big sack, shiny hero. Bigger inside. Pip sells it, if you have the silver."));
+			  O.Skill = TEXT("perception"); O.DC = 13; O.Fail = TEXT("Sack? What sack? Pip sits on nothing. Buy something."); O.Xp = 5; N.Options.Add(O); }
+			{ FTalkOption O = Opt(TEXT("discount"), TEXT("Pip, we both know that potion's watered."), TEXT("Pip is wounded! Wounded. Fine. Have one, and tell no one Pip has a heart."));
+			  O.Skill = TEXT("deception"); O.DC = 16; O.Fail = TEXT("Pip's potions are pure! Purer than you. Rude."); O.GiveItem = TEXT("potion"); N.Options.Add(O); }
+			N.Stock = { TEXT("potion"), TEXT("ration"), TEXT("torch"), TEXT("tinderbox"), TEXT("rope"), TEXT("hatchet"), TEXT("shovel"), TEXT("picks"), TEXT("lantern"), TEXT("bag") };
 			Out.Add(N);
 		}
 		return Out;

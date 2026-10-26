@@ -23,6 +23,10 @@ public:
 	void MoveTo(const FVector& Target) { MoveTarget = Target; bHasMoveTarget = true; }
 	void StopMove() { bHasMoveTarget = false; }
 	void ZoomBy(float Delta) { TargetArm = FMath::Clamp(TargetArm + Delta, 700.f, 3600.f); }
+	// The camera turns in 60 degree steps, one hex side at a time; WASD stays relative to the screen.
+	void RotateView(float Deg) { TargetYaw += Deg; }
+	void SetViewYaw(float Deg) { TargetYaw = ViewYaw = Deg; }
+	float GetViewYaw() const { return TargetYaw; }
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<USceneComponent> Visual;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<USpringArmComponent> Boom;
@@ -39,4 +43,5 @@ private:
 	float BobTime = 0.f;
 	float StepClock = 0.f;
 	float TargetArm = 2100.f;
+	float ViewYaw = 0.f, TargetYaw = 0.f;
 };

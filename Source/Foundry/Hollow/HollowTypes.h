@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HollowItems.h"
 
 enum class ETerr : uint8 { Forest, Plains, Hills, Swamp, Ruins, River, Town, Keep, Shrine };
 
@@ -29,6 +30,7 @@ struct FHollowHex
 	FString LeadName;          // label shown once a conversation reveals it
 	TArray<bool> ChestTaken;   // small loot spots in the local area
 	TArray<bool> FogCleared;   // fog-of-war cells already revealed in the local area
+	TArray<bool> FeatureDone;  // tool-gated spots (dig, cut, climb, pick, dark, fire) already used
 	bool IsOpen() const { return State >= EHexState::Open; }
 	bool IsVisited() const { return State >= EHexState::Explored; }
 };
@@ -94,7 +96,8 @@ enum class ECardFx : uint8
 {
 	PowerAttack, DoubleSlice, SuddenCharge, Intimidate, Feint, Tumble, Hamstring,
 	ForceBarrage, ElectricArc, Fear, ShieldSpell, Heal, DivineLance, Bless,
-	Quicken, LuckyCoin, SecondWind, Insight, BattleHymn, Riposte, HolyFlame
+	Quicken, LuckyCoin, SecondWind, Insight, BattleHymn, Riposte, HolyFlame,
+	LibSpell   // any library spell, resolved generically from its damage / defense / area data
 };
 
 struct FCardDef
@@ -104,6 +107,9 @@ struct FCardDef
 	ECardFx Fx = ECardFx::PowerAttack;
 	FLinearColor Col;
 	bool bNeedsTarget = true;
+	FString Spell;          // LibSpell: library spell name
+	int32 Rank = 0;         // LibSpell: rank it is cast at (heightened to your level)
+	bool bExhaust = false;  // ranked spells: spent until you rest
 };
 
 /* ---------- NPCs and talk ---------- */
@@ -121,10 +127,32 @@ struct FNpcReply
 	int32 Gold = 0, Rations = 0, Holy = 0;
 };
 
+// A conditional dialogue line (Nivalis/articy style: a choice with a condition, an optional check, and instructions on success).
+struct FTalkOption
+{
+	FString Id, Label;
+	FString NeedItem;          // must carry this item (shown as [Requires X] when you don't)
+	int32 NeedCount = 1;
+	bool bGive = false;        // hands NeedItem over (all you carry when bGiveAll)
+	bool bGiveAll = false;
+	FString Skill;             // empty = no check
+	int32 DC = 0;
+	int32 Cost = 0;            // silver
+	FString Ok, Fail;          // NPC reply on success / failure ([topics] still unlock)
+	FString GiveItem;          // item handed to you on success
+	int32 GiveCount = 1;
+	int32 Gold = 0, Xp = 0;    // Gold per item when bGiveAll
+	FString Lead;
+	bool bOnce = true;
+	FString After;             // only offered once this option (id) has succeeded
+};
+
 struct FNpcDef
 {
 	FString Id, Name, Role, Greeting, Unknown, Service;
 	TMap<FString, FNpcReply> Replies;
+	TArray<FTalkOption> Options;   // conditional lines: skill checks, item gives, paid favours
+	TArray<FString> Stock;                // what the Trade window sells
 	FLinearColor Body, Skin, Hat;
 	int32 HatStyle = 0;
 };
@@ -153,7 +181,13 @@ struct FPC
 	FString SpellAbil;
 	int32 SpellRank = 1;
 	int32 HpPer = 8, HpMax = 10, Hp = 10;
-	int32 Gold = 20, Rations = 6, Potions = 1, Holy = 0;
+	int32 Gold = 20;                 // silver; money lives outside the containers, like Nivalis' IMoneyContainer
+	FInventory Inv;
+	TArray<FString> Boosts;          // ability boosts picked on level-up, in order (for the sheet)
+	FString Heritage, Background, Deity, Tradition;
+	TArray<TPair<int32, FString>> Feats;   // level taken, library feat name
+	TArray<FString> Spells;                // library spell names known / prepared
+	int32 Count(const FString& Id) const { return Inv.Count(Id); }
 	int32 Speed = 25;
 	TArray<FString> Deck;
 	FLinearColor Body, Skin, Hat;
@@ -168,6 +202,9 @@ namespace HollowData
 	const FEventDef* FindEvent(const FString& Id);
 	const TMap<FString, FFoeDef>& Foes();
 	const TMap<FString, FCardDef>& Cards();
+	void RegisterCard(const FCardDef& Card);
+	// Card id for a library spell cast at the given rank, registering it on first use. Empty if unknown.
+	FString SpellCard(const FString& SpellName, int32 Rank);
 	const TArray<FString>& RewardPool(const FString& Kit);
 	TArray<FString> StarterDeck(const FString& Kit);
 	const TArray<FTopicDef>& Topics();

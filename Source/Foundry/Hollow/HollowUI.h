@@ -33,6 +33,15 @@ private:
 	TSharedRef<SWidget> BuildDeck();
 	TSharedRef<SWidget> BuildCard(const FCardDef& Card, bool bEnabled, TFunction<void()> OnClick, float Scale = 1.f, int32 Serial = -1, int32 Index = 0);
 	TSharedRef<SWidget> BuildNote();
+	TSharedRef<SWidget> BuildPause();
+	TSharedRef<SWidget> BuildInventory();
+	TSharedRef<SWidget> BuildJournal();
+	TSharedRef<SWidget> BuildSystem();
+	TSharedRef<SWidget> BuildLibrary();
+	TSharedRef<SWidget> BuildTrade();
+	TSharedRef<SWidget> BuildLevelUp();
+	TSharedRef<SWidget> BuildAbilities();
+	TSharedRef<SWidget> BuildSlot(int32 Bag, int32 Slot);
 
 	TWeakObjectPtr<AHollowGameMode> GM;
 	TSharedPtr<SEditableTextBox> AskBox;

@@ -90,7 +90,8 @@ void AHollowHero::Tick(float Dt)
 
 	const float Arm = FMath::FInterpTo(Boom->TargetArmLength, TargetArm, Dt, 6.f);
 	Boom->TargetArmLength = Arm;
-	Boom->SetWorldRotation(FRotator(FMath::GetMappedRangeValueClamped(FVector2D(700.f, 3600.f), FVector2D(-40.f, -66.f), Arm), 0.f, 0.f));
+	ViewYaw = FMath::FInterpTo(ViewYaw, TargetYaw, Dt, 7.f);
+	Boom->SetWorldRotation(FRotator(FMath::GetMappedRangeValueClamped(FVector2D(700.f, 3600.f), FVector2D(-40.f, -66.f), Arm), ViewYaw, 0.f));
 
 	const float Speed = GetVelocity().Size2D();
 	if (Speed > 20.f)

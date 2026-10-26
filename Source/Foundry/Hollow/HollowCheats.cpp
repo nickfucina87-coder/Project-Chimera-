@@ -5,6 +5,7 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "HollowGameMode.h"
+#include "HollowHero.h"
 
 struct FHollowCheats
 {
@@ -30,8 +31,21 @@ struct FHollowCheats
 		else if (V == TEXT("ask")) G->AskText(Rest(1));
 		else if (V == TEXT("topic")) G->AskTopic(Rest(1));
 		else if (V == TEXT("service")) G->Service(Rest(1));
-		else if (V == TEXT("close")) { G->CloseTalk(); G->CloseEvent(); G->bSheetOpen = G->bDeckOpen = false; G->MarkUI(); }
+		else if (V == TEXT("close")) { G->CloseTalk(); G->CloseEvent(); G->SetPaused(false); G->CloseTrade(); }
 		else if (V == TEXT("map")) G->ToggleMap();
+		else if (V == TEXT("give")) { if (Args.Num() > 1) G->Give(Args[1].ToLower(), FMath::Max(1, Int(2, 1)), true); }
+		else if (V == TEXT("pause")) G->TogglePause(EPauseTab::Inventory);
+		else if (V == TEXT("xp")) G->GainXp(FMath::Max(1, Int(1)));
+		else if (V == TEXT("reply")) G->ChooseTalk(Int(1) - 1);
+		else if (V == TEXT("spot"))
+		{
+			// jump to the Nth tool-gated spot on this hex and refresh the aura
+			int32 N = Int(1);
+			for (const FInteractable& I : G->Interactables)
+				if (I.Kind == TEXT("feature") && N-- <= 0 && G->Hero) { G->Hero->SetActorLocation(I.Loc + FVector(-200, 0, 150)); UE_LOG(LogTemp, Display, TEXT("hollow spot: %s at %s"), *I.Id, *I.Loc.ToString()); break; }
+			G->RefreshAura();
+		}
+		else if (V == TEXT("levelup")) { if (Args.Num() > 2) { G->PickBoost(Args[1].ToLower()); G->PickSkillUp(Args[2].ToLower()); } G->ConfirmLevelUp(); }
 		else if (V == TEXT("select")) G->SelectHex(FIntPoint(Int(1), Int(2)));
 		else if (V == TEXT("go")) G->MapAction(FIntPoint(Int(1), Int(2)));
 		else if (V == TEXT("enter")) G->EnterHex(FIntPoint(Int(1), Int(2)), false);

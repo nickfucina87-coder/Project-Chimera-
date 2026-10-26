@@ -31,3 +31,10 @@ CC0 needs no attribution, but crediting is good manners. The original zips are k
 | Leather026 (1K PNG) | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Leather026 |
 | Fabric045 (1K PNG) | ambientCG (Lennart Demes) | CC0 | https://ambientcg.com/view?id=Fabric045 |
 
+
+## Rules library (local only, never committed)
+| Source | Licence | How it is used |
+|---|---|---|
+| Foundry VTT pf2e system compendiums (Paizo content) | ORC / OGL, Paizo Community Use | Exported locally with @foundryvtt/foundryvtt-cli and converted by Tools/BuildLibrary.mjs into ExternalAssets/Library/library.json (gitignored). The game loads it at runtime. |
+| Pathmuncher (Jack Holloway) | MIT | Its Pathbuilder-to-Foundry rename tables are read from the locally installed module by Tools/BuildLibrary.mjs, and its name-cleanup approach is mirrored in HollowLibrary.cpp. |
+| JB2A, Sequencer, FXMaster (installed in the user's Foundry) | JB2A: CC BY-NC-SA 4.0; Sequencer: MIT | Not copied. Spell effects in Emberfall follow the same idea (an effect family per damage type) using our own Niagara. |

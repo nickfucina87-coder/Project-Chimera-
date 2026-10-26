@@ -363,7 +363,7 @@ void AHollowGameMode::AskText(const FString& Text)
 	if (!bBrainOnline)
 	{
 		if (!BestKnown.IsEmpty()) Reply(*N, BestKnown);
-		else { Talk->Line = N->Unknown; LearnTopics(N->Unknown); }
+		else { SetTalkLine(N->Unknown); LearnTopics(N->Unknown); }
 		MarkUI();
 		return;
 	}
@@ -431,12 +431,12 @@ void AHollowGameMode::AskText(const FString& Text)
 			// brain failed: fall back to the canned library
 			G->bBrainOnline = false;
 			if (!Topic.IsEmpty()) G->Reply(*N, Topic);
-			else G->Talk->Line = N->Unknown;
+			else G->SetTalkLine(N->Unknown);
 		}
 		else
 		{
 			if (!Topic.IsEmpty()) G->Reply(*N, Topic, false);
-			G->Talk->Line = Line.TrimStartAndEnd();
+			G->SetTalkLine(Line.TrimStartAndEnd());
 			G->Talk->bFromBrain = true;
 		}
 		G->Talk->History.Add({ Text, G->Talk->Line });

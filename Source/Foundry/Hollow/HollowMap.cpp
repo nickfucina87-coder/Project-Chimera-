@@ -190,38 +190,103 @@ void AHollowGameMode::MapAction(const FIntPoint& H)
 	FHollowHex* X = Hexes.Find(H);
 	if (!X) return;
 	if (H == Pos) { ToggleMap(); return; }
-	if (CanScout(H))
-	{
-		int32 G, Ra;
-		ScoutCost(H, G, Ra);
-		if (PC.Gold < G || PC.Rations < Ra) { Toast(FString::Printf(TEXT("Scouting needs %d silver and %d ration."), G, Ra)); return; }
-		PC.Gold -= G; PC.Rations -= Ra;
-		X->State = EHexState::Open;
-		Log(FString::Printf(TEXT("Scouted a way into %s (%s)."), *TerrInfo(X->T).Name, *Compass(H)));
-		Toast(TEXT("Route scouted. Click it again to travel."));
-		BuildBoard();
-		MarkUI();
-		return;
-	}
-	if (CanTravel(H))
+	if (CanScout(H)) { if (ScoutHex(H)) { Toast(TEXT("Route scouted. Click it again to travel.")); BuildBoard(); } return; }
+	if (TravelTo(H)) return;
+	if (X->State == EHexState::Rumored) Toast(TEXT("Scout the hexes nearer to you on this route first."));
+	else if (X->State == EHexState::Hidden) Toast(TEXT("Nobody has told you about this place. Talk to people."));
+	else Toast(TEXT("Too far. Travel one hex at a time."));
+}
+
+bool AHollowGameMode::ScoutHex(const FIntPoint& H)
+{
+	FHollowHex* X = Hexes.Find(H);
+	if (!X || !CanScout(H)) return false;
+	int32 G, Ra;
+	ScoutCost(H, G, Ra);
+	if (PC.Gold < G || PC.Count(TEXT("ration")) < Ra) { Toast(FString::Printf(TEXT("Scouting needs %d silver and %d ration."), G, Ra)); return false; }
+	PC.Gold -= G; PC.Inv.Take(TEXT("ration"), Ra);
+	X->State = EHexState::Open;
+	Log(FString::Printf(TEXT("Scouted a way into %s (%s)."), *TerrInfo(X->T).Name, *Compass(H)));
+	MarkUI();
+	return true;
+}
+
+bool AHollowGameMode::TravelTo(const FIntPoint& H, int32 ExitSide)
+{
+	if (!CanTravel(H)) return false;
 	{
 		Day++;
-		if (PC.Rations > 0) PC.Rations--;
+		if (PC.Inv.Has(TEXT("ration"))) PC.Inv.Take(TEXT("ration"));
 		else
 		{
 			const int32 Dm = R(TEXT("1d6"));
 			PC.Hp = FMath::Max(0, PC.Hp - Dm);
 			Toast(FString::Printf(TEXT("No rations. Hunger costs you %d HP."), Dm));
-			if (PC.Hp <= 0) { Die(TEXT("You starved on the road.")); return; }
+			if (PC.Hp <= 0) { Die(TEXT("You starved on the road.")); return true; }
 		}
 		MapSelected.Reset();
+		// walking out through a side: arrive on the far side of the next hex, still facing the way you were going
+		ArriveSide = ExitSide >= 0 ? (ExitSide + 3) % 6 : -1;
 		EnterHex(H, true);
+		if (Hero && ExitSide >= 0) Hero->SetViewYaw(60.f * ExitSide);
 		if (Hero) NiagaraAt(TEXT("/Game/NiagaraExamples/FX_Player/NS_Player_Teleport_In"), Hero->GetActorLocation() - FVector(0, 0, 85.f), 1.f);
+		return true;
+	}
+}
+
+int32 AHollowGameMode::SideToDir(int32 Side)
+{
+	// board neighbours lie at yaw 90, 30, -30, -90, -150, 150 (Dirs order); island sides face 60k, 30 degrees round
+	static const int32 Map[6] = { 1, 0, 5, 4, 3, 2 };
+	return Map[((Side % 6) + 6) % 6];
+}
+
+FIntPoint AHollowGameMode::SideHex(int32 Side) const { return Pos + Dirs[SideToDir(Side)]; }
+
+bool AHollowGameMode::SideOpen(int32 Side) const
+{
+	const FHollowHex* N = Hexes.Find(SideHex(Side));
+	return N && N->State >= EHexState::Rumored;
+}
+
+void AHollowGameMode::EdgeTravel(int32 Side)
+{
+	const FIntPoint H = SideHex(Side);
+	const FHollowHex* N = Hexes.Find(H);
+	if (!N) return;
+	if (N->State == EHexState::Rumored)
+	{
+		if (!CanScout(H)) { Toast(TEXT("You have heard of a way through here, but not enough to follow it.")); return; }
+		if (ScoutHex(H)) { Toast(FString::Printf(TEXT("You find the trail %s. Walk on to follow it."), *Compass(H - Pos))); ClearLocal(); BuildLocal(Pos); RefreshAura(); }
 		return;
 	}
-	if (X->State == EHexState::Rumored) Toast(TEXT("Scout the hexes nearer to you on this route first."));
-	else if (X->State == EHexState::Hidden) Toast(TEXT("Nobody has told you about this place. Talk to people."));
-	else Toast(TEXT("Too far. Travel one hex at a time."));
+	if (Hero) Hero->StopMove();
+	TravelTo(H, Side);
+}
+
+void AHollowGameMode::BuildEdges()
+{
+	UWorld* W = GetWorld();
+	const float Ap = LocalRadius * 0.866f;
+	for (int32 k = 0; k < 6; ++k)
+	{
+		if (!SideOpen(k)) continue;
+		const FHollowHex& N = Hexes.FindChecked(SideHex(k));
+		const float Yaw = 60.f * k;
+		const FVector Out(FMath::Cos(FMath::DegreesToRadians(Yaw)), FMath::Sin(FMath::DegreesToRadians(Yaw)), 0.f);
+		const FVector Side(Out.Y, -Out.X, 0.f);
+		const FVector At = LocalOrigin + Out * Ap * 0.86f;
+		const bool bScouted = N.IsOpen();
+		Local(HollowArt::Signpost(W, At + Side * 170.f, Yaw));
+		if (bScouted) Local(HollowArt::Lantern(W, At - Side * 170.f));
+		AActor* M = Local(HollowArt::Marker(W, At, bScouted ? FLinearColor(1.f, 0.85f, 0.45f) : FLinearColor(0.6f, 0.6f, 0.75f)));
+		int32 G = 0, Ra = 0;
+		ScoutCost(SideHex(k), G, Ra);
+		const FString Label = bScouted
+			? FString::Printf(TEXT("Trail %s to %s (a day's walk, 1 ration)"), *Compass(SideHex(k) - Pos), *TerrInfo(N.T).Name)
+			: FString::Printf(TEXT("Faint path %s: scout it (%d silver, %d ration)"), *Compass(SideHex(k) - Pos), G, Ra);
+		AddInteract(M, TEXT("edge"), FString::FromInt(k), Label, k, 320.f);
+	}
 }
 
 void AHollowGameMode::MakeCamp()
@@ -229,8 +294,8 @@ void AHollowGameMode::MakeCamp()
 	if (Mode != EHollowMode::Map && Mode != EHollowMode::Explore) return;
 	const FHollowHex& H = Hexes.FindChecked(Pos);
 	if (H.T == ETerr::Town) { Toast(TEXT("You're in town. Tobb has beds for five silver.")); return; }
-	if (PC.Rations <= 0) { Toast(TEXT("You need a ration to make camp.")); return; }
-	PC.Rations--; Day++;
+	if (!PC.Inv.Has(TEXT("ration"))) { Toast(TEXT("You need a ration to make camp.")); return; }
+	PC.Inv.Take(TEXT("ration")); Day++; Rest();
 	const int32 Heal = FMath::Min(PC.HpMax - PC.Hp, PC.HpMax / 2);
 	PC.Hp += Heal;
 	Log(FString::Printf(TEXT("Made camp. +%d HP."), Heal));

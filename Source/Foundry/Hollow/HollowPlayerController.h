@@ -14,4 +14,6 @@ public:
 	AHollowPlayerController();
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void BeginPlay() override;
+private:
+	float HoldTime = 0.f;   // how long the left button has been held (click-and-hold follows the cursor)
 };
