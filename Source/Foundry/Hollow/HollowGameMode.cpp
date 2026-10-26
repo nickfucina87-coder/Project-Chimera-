@@ -12,6 +12,7 @@
 #include "Widgets/SWeakWidget.h"
 #include "HollowArt.h"
 #include "HollowHero.h"
+#include "GameFramework/SpringArmComponent.h"
 #include "HollowPlayerController.h"
 #include "HollowRules.h"
 #include "HollowUI.h"
@@ -50,7 +51,7 @@ void AHollowGameMode::BeginPlay()
 		S.bOverride_AutoExposureMethod = true; S.AutoExposureMethod = AEM_Histogram;
 		S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = -4.f;
 		S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 1.f;
-		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.6f;
+		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -1.3f;
 		S.bOverride_AutoExposureSpeedUp = true; S.AutoExposureSpeedUp = 2.f;
 		S.bOverride_AutoExposureSpeedDown = true; S.AutoExposureSpeedDown = 1.f;
 		S.bOverride_BloomIntensity = true; S.BloomIntensity = 0.f;
@@ -153,6 +154,27 @@ void AHollowGameMode::Tick(float Dt)
 	TickFow(Dt);
 	TickTitle(Dt);
 
+	// Hide whatever stands between the top-down camera and the hero (houses, crypts, trees), restore it when clear.
+	{
+		static TSet<TWeakObjectPtr<AActor>> Occluders;
+		TSet<TWeakObjectPtr<AActor>> Blocking;
+		APlayerController* P = GetWorld()->GetFirstPlayerController();
+		if (Mode == EHollowMode::Explore && Hero && P && P->PlayerCameraManager)
+		{
+			const FVector Cam = P->PlayerCameraManager->GetCameraLocation();
+			const FVector Target = Hero->GetActorLocation() + FVector(0, 0, 40.f);
+			TArray<FHitResult> Hits;
+			FCollisionQueryParams Q(TEXT("HollowOcclusion"), false, Hero);
+			GetWorld()->SweepMultiByChannel(Hits, Cam, Target, FQuat::Identity, ECC_Camera, FCollisionShape::MakeSphere(60.f), Q);
+			for (const FHitResult& H : Hits)
+				if (AActor* A = H.GetActor())
+					if (LocalActors.Contains(A) && (H.ImpactPoint - Target).Size() > 120.f) Blocking.Add(A);
+		}
+		for (const TWeakObjectPtr<AActor>& A : Occluders) if (A.IsValid() && !Blocking.Contains(A)) A->SetActorHiddenInGame(false);
+		for (const TWeakObjectPtr<AActor>& A : Blocking) if (A.IsValid()) A->SetActorHiddenInGame(true);
+		Occluders = MoveTemp(Blocking);
+	}
+
 	if (bUIDirty && UI.IsValid())
 	{
 		bUIDirty = false;
@@ -233,6 +255,7 @@ void AHollowGameMode::SpawnHero(const FVector& At)
 	Hero->ClampCenter = LocalOrigin;
 	Hero->ClampRadius = LocalRadius * 0.84f;
 	Hero->SetLook(PC);
+	if (Hero->Boom && Hero->Boom->TargetArmLength < 2400.f) Hero->ZoomBy(500.f);
 	SetViewTo(Hero, 0.6f);
 }
 
@@ -656,7 +679,7 @@ void AHollowGameMode::BuildRim(const FHollowHex& Hex, FRandomStream& Rng)
 			const FVector P = FMath::Lerp(C0, C1, (k + 0.5f) / Steps) * Rng.FRandRange(0.88f, 0.96f);
 			if (FVector::Dist2D(P, FVector(-Apothem, 0, 0)) < 520.f || FVector::Dist2D(P, FVector(Apothem, 0, 0)) < 520.f) continue;
 			Local(HollowArt::Boulders(W, LocalOrigin + P, Rng.FRandRange(0.8f, 1.3f), Rng.RandRange(0, 99999)));
-			if (Count++ % 2 == 0) Local(HollowArt::FogBank(W, LocalOrigin + P * 1.02f + FVector(0, 0, 40), Rng.FRandRange(600.f, 900.f), Hex.T == ETerr::Swamp ? 0.9f : 0.55f, FogCol));
+			if (Count++ % 2 == 0) Local(HollowArt::FogBank(W, LocalOrigin + P * 1.02f + FVector(0, 0, 40), Rng.FRandRange(600.f, 900.f), Hex.T == ETerr::Swamp ? 0.5f : 0.3f, FogCol));
 		}
 	}
 }
@@ -735,7 +758,7 @@ void AHollowGameMode::BuildTown()
 	}
 	for (int32 i = 0; i < 30; ++i) Local(HollowArt::Tuft(W, Polar(Rng.FRandRange(0.f, 360.f), Rng.FRandRange(1550.f, 2000.f)), FLinearColor(0.22f, 0.2f, 0.1f)));
 	for (int32 i = 0; i < 10; ++i) Local(HollowArt::Shrub(W, Polar(Rng.FRandRange(0.f, 360.f), Rng.FRandRange(1500.f, 1980.f)), Rng.FRandRange(0.8f, 1.3f)));
-	Local(HollowArt::FogBank(W, O, 2600.f, 0.08f, FLinearColor(0.6f, 0.5f, 0.8f)));
+	Local(HollowArt::FogBank(W, O, 2600.f, 0.025f, FLinearColor(0.45f, 0.38f, 0.6f)));
 	for (float Ang : { 25.f, -25.f, 62.f, -62.f, 140.f, -140.f })
 		Local(HollowArt::RuneObelisk(W, Polar(Ang, 2160.f), FMath::FRandRange(0.9f, 1.15f)));
 	for (float Ang : { 8.f, 116.f, -116.f, 224.f })

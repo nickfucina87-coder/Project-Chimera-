@@ -45,7 +45,7 @@ void AHollowGameMode::BuildAtmosphere()
 	UDirectionalLightComponent* Moon = NewObject<UDirectionalLightComponent>(Sky);
 	Moon->SetupAttachment(Sky->GetRootComponent());
 	Moon->SetWorldRotation(FRotator(-16.f, 135.f, 0.f));
-	Moon->SetIntensity(3.5f);
+	Moon->SetIntensity(2.5f);
 	Moon->SetLightColor(FLinearColor(0.55f, 0.5f, 1.f));
 	Moon->SetAtmosphereSunLight(true);
 	Moon->SetCastShadows(true);
@@ -64,7 +64,7 @@ void AHollowGameMode::BuildAtmosphere()
 	Amb->SourceType = SLS_CapturedScene;
 	Amb->bLowerHemisphereIsBlack = false;
 	Amb->SetLowerHemisphereColor(FLinearColor(0.02f, 0.02f, 0.035f));
-	Amb->SetIntensity(1.4f);
+	Amb->SetIntensity(0.7f);
 	Amb->SetLightColor(FLinearColor(0.55f, 0.6f, 0.9f));
 	Amb->RegisterComponent();
 
@@ -79,13 +79,13 @@ void AHollowGameMode::BuildAtmosphere()
 	UExponentialHeightFogComponent* Fog = NewObject<UExponentialHeightFogComponent>(Sky);
 	Fog->SetupAttachment(Sky->GetRootComponent());
 	Fog->SetRelativeLocation(FVector(0, 0, -200.f));
-	Fog->SetFogDensity(0.035f);
+	Fog->SetFogDensity(0.012f);
 	Fog->SetFogHeightFalloff(0.45f);
 	Fog->SetFogInscatteringColor(FLinearColor(0.035f, 0.03f, 0.06f));
 	Fog->SetVolumetricFog(true);
 	Fog->SetVolumetricFogScatteringDistribution(0.55f);
-	Fog->SetVolumetricFogExtinctionScale(1.6f);
-	Fog->SetVolumetricFogAlbedo(FColor(170, 170, 200));
+	Fog->SetVolumetricFogExtinctionScale(0.55f);
+	Fog->SetVolumetricFogAlbedo(FColor(120, 115, 140));
 	Fog->SetVolumetricFogDistance(9000.f);
 	Fog->RegisterComponent();
 
@@ -543,3 +543,4 @@ void AHollowGameMode::QuitToDesktop()
 {
 	UKismetSystemLibrary::QuitGame(this, GetWorld()->GetFirstPlayerController(), EQuitPreference::Quit, false);
 }
+

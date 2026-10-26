@@ -166,7 +166,7 @@ UPointLightComponent* Light(AActor* A, const FVector& Loc, const FLinearColor& C
 	L->SetLightColor(C);
 	L->SetSourceRadius(6.f);
 	L->SetCastShadows(bShadows);
-	L->SetVolumetricScatteringIntensity(1.6f);
+	L->SetVolumetricScatteringIntensity(0.6f);
 	L->RegisterComponent();
 	A->AddInstanceComponent(L);
 	return L;
@@ -247,8 +247,6 @@ USkeletalMeshComponent* KChar(AActor* A, USceneComponent* Parent, const FString&
 	const float Bottom = (B.Origin.Z - B.BoxExtent.Z) * S;
 	C->SetRelativeLocationAndRotation(Loc - FVector(0, 0, Bottom), FRotator(0, Yaw - 90.f, 0));
 	C->SetRelativeScale3D(FVector(S));
-	if (UMaterialInstanceDynamic* M = GrimFor(TEXT("Graveyard")))
-		for (int32 i = 0; i < C->GetNumMaterials(); ++i) C->SetMaterial(i, M);
 	C->SetCollisionProfileName(TEXT("NoCollision"));
 	C->RegisterComponent();
 	A->AddInstanceComponent(C);
@@ -337,7 +335,9 @@ AActor* Ridge(UWorld* W, const FVector& L, float Yaw, float S, int32 Seed)
 	{
 		const FVector P(R.FRandRange(-200.f, 200.f) * S, (i - 3) * 190.f * S, 0);
 		const float H = R.FRandRange(1.f, 1.8f);
-		if (!KPart(A, R.FRand() < 0.5f ? TEXT("Nature/cliff_block_rock") : TEXT("Nature/cliff_large_rock"), P, R.FRandRange(0.f, 360.f), 3.2f * S, nullptr, FVector(1.f, 1.f, H)))
+		if (UStaticMeshComponent* Cl = KPart(A, R.FRand() < 0.5f ? TEXT("Nature/cliff_block_rock") : TEXT("Nature/cliff_large_rock"), P, R.FRandRange(0.f, 360.f), 3.2f * S, nullptr, FVector(1.f, 1.f, H)))
+			for (int32 m = 0; m < Cl->GetNumMaterials(); ++m) Cl->SetMaterial(m, Mat(Stone * R.FRandRange(0.5f, 0.8f)));
+		else
 			Part(A, EShape::Cube, P + FVector(0, 0, 160 * H * S), FVector(300, 220, 320 * H) * S, Stone, FRotator(0, R.FRandRange(0.f, 90.f), 0));
 		Part(A, EShape::Sphere, P + FVector(0, 0, 330.f * H * S), FVector(240, 200, 60) * S, Moss * R.FRandRange(0.8f, 1.2f));
 	}
@@ -372,8 +372,9 @@ AActor* Boulders(UWorld* W, const FVector& L, float S, int32 Seed)
 		const float Sc = R.FRandRange(2.2f, 4.2f) * S;
 		UStaticMeshComponent* C = KPart(A, Rocks[R.RandRange(0, 8)], P, R.FRandRange(0.f, 360.f), Sc);
 		if (!C) C = Part(A, EShape::Sphere, P + FVector(0, 0, 40 * Sc), FVector(110, 90, 80) * Sc, Stone);
-		if (R.FRand() < 0.7f)
-			Part(A, EShape::Sphere, P + FVector(R.FRandRange(-20.f, 20.f), R.FRandRange(-20.f, 20.f), 45.f * Sc), FVector(80, 70, 22) * Sc, Moss * R.FRandRange(0.8f, 1.3f));
+		else for (int32 m = 0; m < C->GetNumMaterials(); ++m) C->SetMaterial(m, Mat(Stone * R.FRandRange(0.55f, 0.85f)));
+		if (R.FRand() < 0.5f)
+			Part(A, EShape::Sphere, P + FVector(R.FRandRange(-20.f, 20.f), R.FRandRange(-20.f, 20.f), 38.f * Sc), FVector(55, 45, 12) * Sc, Moss * R.FRandRange(0.5f, 0.8f));
 	}
 	Collider(A, FVector(0, 0, 80), FVector(260, 260, 160) * S, 0.f, true);
 	return A;
@@ -383,8 +384,11 @@ AActor* Rock(UWorld* W, const FVector& L, float S, float Yaw)
 {
 	AActor* A = NewActor(W, L, Yaw);
 	static const TCHAR* Rocks[] = { TEXT("Nature/rock_largeA"), TEXT("Nature/rock_largeE"), TEXT("Nature/rock_largeF"), TEXT("Graveyard/rocks") };
-	if (!KPart(A, Rocks[FMath::RandRange(0, 3)], FVector::ZeroVector, 0.f, 2.6f * S))
-		Part(A, EShape::Sphere, FVector(0, 0, 20 * S), FVector(120, 90, 70) * S, Stone, FRotator(8, 0, 12));
+	if (UStaticMeshComponent* C = KPart(A, Rocks[FMath::RandRange(0, 3)], FVector::ZeroVector, 0.f, 2.6f * S))
+	{
+		for (int32 m = 0; m < C->GetNumMaterials(); ++m) C->SetMaterial(m, Mat(Stone * FMath::FRandRange(0.55f, 0.85f)));
+	}
+	else Part(A, EShape::Sphere, FVector(0, 0, 20 * S), FVector(120, 90, 70) * S, Stone, FRotator(8, 0, 12));
 	Collider(A, FVector(0, 0, 40), FVector(150, 150, 80) * S, 0.f, true);
 	return A;
 }
@@ -411,7 +415,7 @@ AActor* Shrub(UWorld* W, const FVector& L, float S)
 AActor* House(UWorld* W, const FVector& L, float Yaw, const FLinearColor& Wall, const FLinearColor& Roof, const FVector& Size, bool bSign, bool bStone)
 {
 	AActor* A = NewActor(W, L, Yaw);
-	const float S = 2.3f, Cell = 100.f * S;
+	const float S = 1.9f, Cell = 100.f * S;
 	const int32 D = FMath::Max(2, FMath::RoundToInt(Size.X / Cell)), Wd = FMath::Max(2, FMath::RoundToInt(Size.Y / Cell));
 	const int32 Floors = Size.Z > 300.f ? 2 : 1;
 	const float X = D * Cell, Y = Wd * Cell, Z = Floors * Cell;
@@ -805,7 +809,7 @@ AActor* EldritchFountain(UWorld* W, const FVector& L)
 	if (!KPart(A, TEXT("Town/fountain-round-detail"), FVector::ZeroVector, 0.f, 2.f))
 		Part(A, EShape::Cylinder, FVector(0, 0, 40), FVector(400, 400, 80), Stone);
 	UStaticMeshComponent* Water = Part(A, EShape::Cylinder, FVector(0, 0, 46), FVector(330, 330, 4), Eldritch);
-	Water->SetMaterial(0, EmitMat(Eldritch * 0.35f, 0.9f));
+	Water->SetMaterial(0, EmitMat(Eldritch * 0.25f, 0.5f));
 	for (float Rr : { 560.f, 760.f })
 	{
 		UStaticMeshComponent* Ring = Part(A, EShape::Cylinder, FVector(0, 0, 4), FVector(Rr * 2.f, Rr * 2.f, 1.f), Eldritch);
@@ -826,8 +830,8 @@ AActor* EldritchFountain(UWorld* W, const FVector& L)
 		Rad *= 0.86f;
 	}
 	GlowPart(A, EShape::Sphere, FVector(0, 0, 470), FVector(90, 90, 90), Eldritch);
-	Light(A, FVector(0, 0, 470), Eldritch, 120.f, 1800.f, true);
-	Light(A, FVector(0, 0, 80), Eldritch, 30.f, 900.f);
+	Light(A, FVector(0, 0, 470), Eldritch, 40.f, 1400.f, true);
+	Light(A, FVector(0, 0, 80), Eldritch, 10.f, 700.f);
 	return A;
 }
 

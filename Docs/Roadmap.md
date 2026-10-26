@@ -15,6 +15,19 @@
   - **Hollowmere Keep / the Choir's temple:** the final boss uses this format.
 - **First milestone:** one sample boss (the Choir's Hierophant) in one church level, built end to end. Assets: cathedral kit (Fab), a boss model (Tripo), organ / choir music.
 
+## Saved for later: a continuous world read through splat maps
+- **One terrain gradient across the March,** driven by a splat map (biome weights per hex and per texel), so the land visibly changes as you move outward from Brindlemark:
+  - Spooky lantern town.
+  - Withering wilds: dead grass, then black soil and bone.
+  - The eldritch cathedral and worship grounds.
+  - **The Emberfall:** the impact site where the god is meant to land. Glassed earth, floating rock, violet light.
+- **See the frontier from where you stand:** with a saved game, looking out from a hex shows neighbouring hexes you've unlocked as real terrain beyond your island's edge. Still-locked hexes appear as vague, nodal silhouettes in the fog, shapes that don't resolve into anything yet.
+- **Implementation sketch:**
+  - Generate a splat texture per hex from its terrain plus its distance and direction from the Emberfall.
+  - A layered landscape material blends Megascans surfaces by splat channel.
+  - Neighbour islands get low-detail impostor rings (HLOD-style), and locked ones are fog-card silhouettes.
+  - Fog-of-war state persists in the save game.
+
 ## Near-term
 - Translucent fog-of-war material (currently additive mist).
 - Proper human models plus your animation set; replace the chibi stand-ins.

@@ -25,6 +25,7 @@ struct FHollowCheats
 		auto Rest = [&](int32 From) { FString S; for (int32 i = From; i < Args.Num(); ++i) S += (i > From ? TEXT(" ") : TEXT("")) + Args[i]; return S; };
 
 		if (V == TEXT("begin")) { G->NewGame(); if (Args.Num() > 1) G->CreateKit = Args[1]; if (Args.Num() > 2) G->CreateAnc = Args[2]; G->BeginAdventure(); }
+		else if (V == TEXT("new")) G->NewGame();
 		else if (V == TEXT("talk")) G->OpenTalk(Rest(1));
 		else if (V == TEXT("ask")) G->AskText(Rest(1));
 		else if (V == TEXT("topic")) G->AskTopic(Rest(1));

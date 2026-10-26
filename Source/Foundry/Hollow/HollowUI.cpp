@@ -465,7 +465,7 @@ TSharedRef<SWidget> SHollowUI::BuildCreate()
 					+ SVerticalBox::Slot().AutoHeight()[Label(TEXT("NAME"))]
 					+ SVerticalBox::Slot().AutoHeight().Padding(0, 4, 0, 10)
 					[
-						SNew(SEditableTextBox).Text(FText::FromString(G->CreateName)).Font(Font(16)).BackgroundColor(C(0xF4E9D2)).ForegroundColor(Ink)
+						SNew(SEditableTextBox).Text(FText::FromString(G->CreateName)).Font(Font(16)).ForegroundColor(C(0xF6E7C8))
 						.OnTextChanged_Lambda([G](const FText& Tx) { G->CreateName = Tx.ToString(); })
 						.OnTextCommitted_Lambda([G](const FText& Tx, ETextCommit::Type) { G->CreateName = Tx.ToString(); G->MarkUI(); })
 					]
