@@ -4,6 +4,8 @@ Shared **project Bible** inside [Project-Chimera-](https://github.com/nickfucina
 
 This folder is the single source of truth for **Azeroth Reborn** so Nick, his brother, and every Grok Bot stay out of each other’s lanes. Chimera gameplay/code docs live elsewhere under `Docs/`; do not mix them into this tree.
 
+**Pitch:** Section-by-section island remake of Azeroth (Barrens / arid lands focus first), Mike leads; Nick aids with shared assets. Mike's Phase-1 handoff pack: see the handoff README / GitHub Release.
+
 ## How to use this Bible
 
 1. Read `BIBLE.md` before any Azeroth Reborn work.

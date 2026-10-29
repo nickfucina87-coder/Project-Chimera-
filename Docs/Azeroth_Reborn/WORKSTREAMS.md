@@ -7,7 +7,7 @@ Update this **before** starting work. One active owner per lane. If a lane is fr
 | Lane | Owner (human or bot) | Status | Notes / branch or doc |
 |------|----------------------|--------|------------------------|
 | Project Bible / coordination | Seph (Nick’s bot) | Bootstrap | Created this folder + PR; hand off when Nick assigns |
-| Brother contribution | TBD | Waiting | Add GitHub name + first lane when known |
+| Brother contribution (island sections) | Mike | Active | Mike leads; Nick Phase-1 aid pack (optional modular town + textures) — do not supersede |
 | Lore / world Bible | Unclaimed | — | |
 | Systems / design | Unclaimed | — | |
 | Art direction | Unclaimed | — | |
