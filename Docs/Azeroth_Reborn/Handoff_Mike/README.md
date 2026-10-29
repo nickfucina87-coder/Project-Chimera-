@@ -17,7 +17,7 @@
 
 ## Where the binaries live
 Binaries are too big for normal git commits; they ship as GitHub Release assets:
-- Release: `RELEASE_URL`
+- Release: `https://github.com/nickfucina87-coder/Project-Chimera-/releases/tag/azeroth-reborn-mike-handoff-phase1`
 - `AzerothReborn_Mike_Handoff_Phase1_Docs.zip` — these docs
 - `AzerothReborn_Mike_Handoff_Phase1_TripoVillage.zip` — Tripo modular village kit (FBX + 4K textures + maps), multiview refs, two alternate clipped zips
 - `AzerothReborn_Mike_Handoff_Phase1_PolyHaven.zip` — Poly Haven 2K CC0 terrain/building textures (dry ground, rocky trail, dirt, grass, cobblestone, wood, brick, plaster)
