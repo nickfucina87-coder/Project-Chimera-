@@ -21,6 +21,7 @@ This folder is the single source of truth for **Azeroth Reborn** so Nick, his br
 | `BIBLE.md` | Canon, tone, scope, decisions, open questions |
 | `WORKSTREAMS.md` | Who owns what right now (anti-overlap board) |
 | `README.md` | This index |
+| [Multiplayer/](Multiplayer/README.md) | Co-op test brief for Mike’s Azrothreborn agents (Steam friend invite). Implementation stays in that repo. |
 
 ## Separation rule
 
